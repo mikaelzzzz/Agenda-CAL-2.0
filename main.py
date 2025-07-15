@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import asynccontextmanager
 import hmac
 import hashlib
 import json
@@ -7,9 +8,10 @@ from datetime import datetime, timedelta
 from fastapi import FastAPI, Header, HTTPException, Request, status, Body
 from pydantic import ValidationError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.triggers.date import DateTrigger
 
-from config import CAL_SECRET, TZ, ADMIN_PHONES, HEADERS_NOTION, NOTION_STATUS_VALUE
+from config import CAL_SECRET, TZ, ADMIN_PHONES, HEADERS_NOTION, NOTION_STATUS_VALUE, DATABASE_URL
 from models import (
     CalWebhookPayload,
     ScheduleTestRequest,
@@ -28,16 +30,32 @@ from services.scheduling_service import schedule_messages, schedule_lead_message
 from utils import format_pt_br
 
 # -----------------------------------------------------------------------------
-# FastAPI app & scheduler
+# Scheduler Setup with Persistent Job Store
 # -----------------------------------------------------------------------------
+jobstores = {
+    'default': SQLAlchemyJobStore(url=DATABASE_URL)
+}
+scheduler = AsyncIOScheduler(jobstores=jobstores)
+
+# -----------------------------------------------------------------------------
+# FastAPI app & scheduler lifecycle
+# -----------------------------------------------------------------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Iniciar o scheduler quando a aplicação iniciar
+    scheduler.start()
+    print("Scheduler started...")
+    yield
+    # Parar o scheduler quando a aplicação desligar
+    scheduler.shutdown()
+    print("Scheduler shut down.")
+
 app = FastAPI(
     title="Cal.com → Notion + WhatsApp Integration",
     description="Integration service that receives Cal.com webhooks and syncs with Notion and WhatsApp",
-    version="1.0.3"
+    version="1.0.4",
+    lifespan=lifespan
 )
-
-scheduler = AsyncIOScheduler()
-scheduler.start()
 
 # -----------------------------------------------------------------------------
 # Helpers

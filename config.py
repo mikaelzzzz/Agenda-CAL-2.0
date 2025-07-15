@@ -8,6 +8,7 @@ load_dotenv()
 # --- Core App Config ---
 CAL_SECRET = os.getenv("CAL_SECRET", "changeme").encode()
 TZ = pytz.timezone(os.getenv("TZ", "America/Sao_Paulo"))
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # --- Notion API Config ---
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
