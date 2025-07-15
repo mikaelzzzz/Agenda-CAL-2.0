@@ -80,7 +80,7 @@ def send_immediate_booking_notifications(
 
     # 1️⃣ confirmação + link do Zoom
     msg1 = (
-        f"Olá, {attendee_name}! 👋\n\n"
+        f"Pronto, {attendee_name}!!\n\n"
         f"✅ Sua reunião está confirmada para *{start_dt.strftime('%d/%m')}* "
         f"às *{start_dt.strftime('%H:%M')}*.\n\n"
         "🖥️ Acesse a sala da reunião no link abaixo 👇\n"
