@@ -25,34 +25,32 @@ def notion_find_page(identifier: str | None, by: str = "phone") -> Optional[str]
 
     print(f"Buscando no Notion com filtro: {json.dumps(filter_json, indent=2)}")
 
-    resp = httpx.post(
-        f"https://api.notion.com/v1/databases/{NOTION_DB}/query",
-        headers=HEADERS_NOTION,
-        json={"filter": filter_json},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    results = resp.json().get("results", [])
+    try:
+        resp = httpx.post(
+            f"https://api.notion.com/v1/databases/{NOTION_DB}/query",
+            headers=HEADERS_NOTION,
+            json={"filter": filter_json},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
 
-    if results:
-        print(f"Encontrou página no Notion: {results[0]['id']}")
-    else:
-        print("Nenhuma página encontrada no Notion")
+        if results:
+            print(f"Encontrou página no Notion: {results[0]['id']}")
+            return results[0]["id"]
+        else:
+            print("Nenhuma página encontrada no Notion")
+            return None
+    except Exception as e:
+        print(f"Erro ao buscar página no Notion: {e}")
+        return None
 
-    return results[0]["id"] if results else None
 
-
-def notion_update_datetime(page_id: str, when: str) -> None:
-    print(f"Atualizando Notion page {page_id} com data {when}")
+def notion_update_meeting_date(page_id: str, when: str) -> None:
+    """Atualiza apenas a data da reunião na página do Notion."""
+    print(f"Atualizando data de reunião da página {page_id} para {when}")
     payload = {
-        "properties": {
-            "Data Agendada pelo Lead": {
-                "rich_text": [{"text": {"content": when}}]
-            },
-            "Status": {
-                "status": {"name": "Agendado reunião"}
-            }
-        }
+        "properties": {"Data Agendada pelo Lead": {"rich_text": [{"text": {"content": when}}]}}
     }
     try:
         resp = httpx.patch(
@@ -62,10 +60,29 @@ def notion_update_datetime(page_id: str, when: str) -> None:
             timeout=15,
         )
         resp.raise_for_status()
-        print(f"Notion atualizado com sucesso: {resp.status_code}")
+        print(f"✓ Data de reunião no Notion atualizada com sucesso.")
     except Exception as e:
-        print(f"Erro ao atualizar Notion: {str(e)}")
-        raise
+        print(f"✗ Erro ao atualizar data de reunião no Notion: {str(e)}")
+
+
+def notion_update_status(page_id: str, status_name: str) -> None:
+    """Atualiza apenas o status na página do Notion."""
+    print(f"Atualizando status da página {page_id} para '{status_name}'")
+    payload = {
+        "properties": {"Status": {"status": {"name": status_name}}}
+    }
+    try:
+        resp = httpx.patch(
+            f"https://api.notion.com/v1/pages/{page_id}",
+            headers=HEADERS_NOTION,
+            json=payload,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        print(f"✓ Status no Notion atualizado com sucesso.")
+    except Exception as e:
+        print(f"✗ Erro ao atualizar status no Notion: {str(e)}")
+
 
 def notion_update_email(page_id: str, email: str) -> None:
     print(f"Atualizando e-mail da página {page_id} para {email}")

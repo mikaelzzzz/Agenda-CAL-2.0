@@ -18,7 +18,8 @@ from models import (
 )
 from services.notion_service import (
     notion_find_page,
-    notion_update_datetime,
+    notion_update_meeting_date,
+    notion_update_status,
     notion_update_email,
     notion_create_page
 )
@@ -32,7 +33,7 @@ from utils import format_pt_br
 app = FastAPI(
     title="Cal.com → Notion + WhatsApp Integration",
     description="Integration service that receives Cal.com webhooks and syncs with Notion and WhatsApp",
-    version="1.0.2"
+    version="1.0.3"
 )
 
 scheduler = AsyncIOScheduler()
@@ -102,7 +103,8 @@ async def cal_webhook(
     # 3. Atualizar Notion e enviar notificações
     if page_id:
         print(f"Página do Notion encontrada/criada: {page_id}")
-        notion_update_datetime(page_id, formatted_pt)
+        notion_update_meeting_date(page_id, formatted_pt)
+        notion_update_status(page_id, "Agendado reunião")
         if attendee.email:
             notion_update_email(page_id, attendee.email)
     else:
@@ -126,7 +128,7 @@ async def cal_webhook(
 async def root():
     return {
         "status": "healthy",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "timezone": str(TZ),
         "admin_phones_configured": len(ADMIN_PHONES),
     }
