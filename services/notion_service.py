@@ -106,14 +106,20 @@ def notion_update_email(page_id: str, email: str) -> None:
         print(f"Erro ao atualizar e-mail no Notion: {str(e)}")
         # Não levantar exceção para não parar o fluxo principal
 
-def notion_create_page(name: str, email: str | None, phone: str | None) -> str | None:
-    """Cria uma nova página no Notion para um novo lead."""
+def notion_create_page(
+    name: str,
+    email: str | None,
+    phone: str | None,
+    meeting_date: str,
+    status: str
+) -> str | None:
+    """Cria uma nova página no Notion para um novo lead com todos os detalhes."""
     print(f"Criando nova página no Notion para: {name}")
 
     properties = {
-        "Nome": {
-            "title": [{"text": {"content": name}}]
-        }
+        "Nome": {"title": [{"text": {"content": name}}]},
+        "Status": {"status": {"name": status}},
+        "Data Agendada pelo Lead": {"rich_text": [{"text": {"content": meeting_date}}]},
     }
     if email:
         properties["Email"] = {"email": email}
@@ -141,4 +147,6 @@ def notion_create_page(name: str, email: str | None, phone: str | None) -> str |
         return new_page_id
     except Exception as e:
         print(f"✗ Erro ao criar página no Notion: {str(e)}")
+        # Adiciona log do payload para depuração
+        print(f"Payload enviado: {json.dumps(payload, indent=2)}")
         return None 

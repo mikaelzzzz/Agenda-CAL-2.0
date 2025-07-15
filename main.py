@@ -96,20 +96,26 @@ async def cal_webhook(
     if not page_id and attendee.email:
         page_id = notion_find_page(attendee.email, by="email")
 
-    if not page_id:
-        print("Lead não encontrado. Criando novo registro no Notion...")
-        page_id = notion_create_page(attendee.name, attendee.email, whatsapp)
-
-    # 3. Atualizar Notion e enviar notificações
     if page_id:
-        print(f"Página do Notion encontrada/criada: {page_id}")
+        print(f"Página do Notion encontrada: {page_id}")
         notion_update_meeting_date(page_id, formatted_pt)
         notion_update_status(page_id, "Agendado reunião")
         if attendee.email:
             notion_update_email(page_id, attendee.email)
     else:
-        print("✗ Não foi possível encontrar ou criar uma página no Notion.")
+        print("Lead não encontrado. Criando novo registro no Notion...")
+        page_id = notion_create_page(
+            name=attendee.name,
+            email=attendee.email,
+            phone=whatsapp,
+            meeting_date=formatted_pt,
+            status="Agendado reunião"
+        )
 
+    # Enviar notificações e agendar mensagens
+    if not page_id:
+        print("✗ Não foi possível encontrar ou criar uma página no Notion. O fluxo de notificação para o lead pode não funcionar.")
+    
     if whatsapp:
         send_immediate_booking_notifications(attendee.name, whatsapp, start_dt)
         schedule_lead_messages(scheduler, attendee.name, whatsapp, start_dt)
