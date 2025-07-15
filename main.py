@@ -92,7 +92,7 @@ async def cal_webhook(
     print(f"Email: {attendee.email}")
     print(f"Data: {formatted_pt}")
 
-    # Extrair WhatsApp do payload
+    # 1. Extrair WhatsApp do payload
     whatsapp = None
     ufr = data.payload.userFieldsResponses
     if ufr and ufr.Whatsapp and 'value' in ufr.Whatsapp:
@@ -103,43 +103,43 @@ async def cal_webhook(
         if resp_field and isinstance(resp_field, dict) and 'whatsapp' in resp_field:
              whatsapp = resp_field['whatsapp'].get('value')
     
-    # Se não encontrou no payload, busca no Notion pelo email
-    page_id = None
-    if not whatsapp and attendee.email:
-        page_id = notion_find_page(attendee.email, by="email")
-        if page_id:
-            try:
-                resp = httpx.get(f"https://api.notion.com/v1/pages/{page_id}", headers=HEADERS_NOTION)
-                resp.raise_for_status()
-                page_props = resp.json().get("properties", {})
-                if "Telefone" in page_props and page_props["Telefone"].get("phone_number"):
-                    whatsapp = page_props["Telefone"]["phone_number"]
-            except Exception as e:
-                print(f"Erro ao buscar telefone no Notion: {e}")
-
     if whatsapp:
-        print(f"WhatsApp encontrado: {whatsapp}")
-        # Tenta encontrar a página pelo telefone para garantir que estámos atualizando a correta
-        page_id_by_phone = notion_find_page(whatsapp, by="phone")
-        if page_id_by_phone:
-            page_id = page_id_by_phone
-    else:
-        print(f"Nenhum número de WhatsApp encontrado.")
+        print(f"WhatsApp extraído do payload: {whatsapp}")
 
-    # Atualizar Notion se encontrarmos uma página
+    # 2. Encontrar a página no Notion
+    page_id = None
+    # Prioridade 1: Buscar pelo número de WhatsApp
+    if whatsapp:
+        page_id = notion_find_page(whatsapp, by="phone")
+
+    # Prioridade 2: Se não encontrou por telefone, buscar por e-mail
+    if not page_id and attendee.email:
+        print(f"Não encontrou por telefone. Tentando por e-mail: {attendee.email}")
+        page_id = notion_find_page(attendee.email, by="email")
+
+    # 3. Se encontrou a página, garantir que temos o número de WhatsApp
+    if page_id and not whatsapp:
+        try:
+            resp = httpx.get(f"https://api.notion.com/v1/pages/{page_id}", headers=HEADERS_NOTION)
+            resp.raise_for_status()
+            page_props = resp.json().get("properties", {})
+            if "Telefone" in page_props and page_props["Telefone"].get("phone_number"):
+                whatsapp = page_props["Telefone"]["phone_number"]
+                print(f"WhatsApp encontrado na página do Notion: {whatsapp}")
+        except Exception as e:
+            print(f"Erro ao buscar telefone do Notion pela página: {e}")
+
+    # 4. Atualizar Notion e enviar notificações
     if page_id:
+        print(f"Página do Notion encontrada: {page_id}")
         try:
             notion_update_datetime(page_id, formatted_pt)
-            print(f"✓ Data de agendamento no Notion atualizada com sucesso para a página {page_id}")
             if attendee.email:
                 notion_update_email(page_id, attendee.email)
-
         except Exception as e:
-            print(f"✗ Erro na integração com Notion: {str(e)}")
-            # não levantar exceção aqui para continuar o fluxo
+            print(f"✗ Erro na atualização do Notion: {str(e)}")
     else:
-        print("✗ Página não encontrada no Notion para atualização.")
-
+        print("✗ Página não encontrada no Notion, nem por telefone nem por e-mail.")
 
     # Enviar notificações e agendar mensagens
     try:
@@ -148,11 +148,16 @@ async def cal_webhook(
         print("✓ Notificações imediatas enviadas com sucesso")
 
         print("\nAgendando mensagens futuras...")
+        if whatsapp:
+            schedule_lead_messages(scheduler, attendee.name, whatsapp, start_dt)
+            print("✓ Mensagens futuras para o lead agendadas com sucesso.")
+        
+        # Mantem o agendamento para os admins
         schedule_messages(scheduler, attendee.name, start_dt)
-        print("✓ Mensagens futuras agendadas com sucesso")
+        print("✓ Mensagens futuras para admins agendadas com sucesso")
+
     except Exception as e:
         print(f"✗ Erro no envio ou agendamento de mensagens: {str(e)}")
-        # não levantar exceção para o webhook não falhar
     
     print("\n=== Webhook processado com sucesso ===")
     return {"success": True}
