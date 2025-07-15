@@ -1,25 +1,35 @@
 import httpx
 import json
 from typing import Optional
-from config import NOTION_DB, HEADERS_NOTION
+from config import (
+    NOTION_DB, HEADERS_NOTION, NOTION_PHONE_PROP, NOTION_EMAIL_PROP,
+    NOTION_NAME_PROP, NOTION_STATUS_PROP, NOTION_DATE_PROP
+)
+
+def clean_phone_number(phone: str) -> str:
+    """Limpa e padroniza o número de telefone para o formato 55..."""
+    clean_phone = ''.join(filter(str.isdigit, phone))
+    if len(clean_phone) > 11 and clean_phone.startswith('55'):
+        return clean_phone
+    if len(clean_phone) == 11 and not clean_phone.startswith('55'): # Celular de SP sem 55
+        return '55' + clean_phone
+    if len(clean_phone) == 10 and not clean_phone.startswith('55'): # Celular fora de SP sem 55
+         return '55' + clean_phone # A Z-API pode lidar com isso, mas vamos padronizar
+    # Adicionar outras regras se necessário
+    if not clean_phone.startswith('55'):
+        return '55' + clean_phone
+    return clean_phone
 
 def notion_find_page(identifier: str | None, by: str = "phone") -> Optional[str]:
     if not identifier:
         return None
 
     if by == "phone":
-        clean_phone = ''.join(filter(str.isdigit, identifier))
-        if clean_phone.startswith('55'):
-            clean_phone = clean_phone[2:]
-        filter_json = {
-            "property": "Telefone",
-            "phone_number": {"equals": clean_phone}
-        }
+        # CORREÇÃO: Busca pelo número completo com '55', sem remover.
+        search_value = clean_phone_number(identifier)
+        filter_json = {"property": NOTION_PHONE_PROP, "phone_number": {"equals": search_value}}
     elif by == "email":
-        filter_json = {
-            "property": "Email",
-            "email": {"equals": identifier}
-        }
+        filter_json = {"property": NOTION_EMAIL_PROP, "email": {"equals": identifier}}
     else:
         return None
 
@@ -45,12 +55,11 @@ def notion_find_page(identifier: str | None, by: str = "phone") -> Optional[str]
         print(f"Erro ao buscar página no Notion: {e}")
         return None
 
-
 def notion_update_meeting_date(page_id: str, when: str) -> None:
     """Atualiza apenas a data da reunião na página do Notion."""
     print(f"Atualizando data de reunião da página {page_id} para {when}")
     payload = {
-        "properties": {"Data Agendada pelo Lead": {"rich_text": [{"text": {"content": when}}]}}
+        "properties": {NOTION_DATE_PROP: {"rich_text": [{"text": {"content": when}}]}}
     }
     try:
         resp = httpx.patch(
@@ -64,12 +73,11 @@ def notion_update_meeting_date(page_id: str, when: str) -> None:
     except Exception as e:
         print(f"✗ Erro ao atualizar data de reunião no Notion: {str(e)}")
 
-
 def notion_update_status(page_id: str, status_name: str) -> None:
     """Atualiza apenas o status na página do Notion."""
     print(f"Atualizando status da página {page_id} para '{status_name}'")
     payload = {
-        "properties": {"Status": {"status": {"name": status_name}}}
+        "properties": {NOTION_STATUS_PROP: {"status": {"name": status_name}}}
     }
     try:
         resp = httpx.patch(
@@ -83,12 +91,11 @@ def notion_update_status(page_id: str, status_name: str) -> None:
     except Exception as e:
         print(f"✗ Erro ao atualizar status no Notion: {str(e)}")
 
-
 def notion_update_email(page_id: str, email: str) -> None:
     print(f"Atualizando e-mail da página {page_id} para {email}")
     payload = {
         "properties": {
-            "Email": {
+            NOTION_EMAIL_PROP: {
                 "email": email
             }
         }
@@ -117,17 +124,14 @@ def notion_create_page(
     print(f"Criando nova página no Notion para: {name}")
 
     properties = {
-        "Nome": {"title": [{"text": {"content": name}}]},
-        "Status": {"status": {"name": status}},
-        "Data Agendada pelo Lead": {"rich_text": [{"text": {"content": meeting_date}}]},
+        NOTION_NAME_PROP: {"title": [{"text": {"content": name}}]},
+        NOTION_STATUS_PROP: {"status": {"name": status}},
+        NOTION_DATE_PROP: {"rich_text": [{"text": {"content": meeting_date}}]},
     }
     if email:
-        properties["Email"] = {"email": email}
+        properties[NOTION_EMAIL_PROP] = {"email": email}
     if phone:
-        clean_phone = ''.join(filter(str.isdigit, phone))
-        if not clean_phone.startswith('55'):
-            clean_phone = '55' + clean_phone
-        properties["Telefone"] = {"phone_number": clean_phone}
+        properties[NOTION_PHONE_PROP] = {"phone_number": clean_phone_number(phone)}
 
     payload = {
         "parent": {"database_id": NOTION_DB},

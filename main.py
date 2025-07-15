@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 
-from config import CAL_SECRET, TZ, ADMIN_PHONES, HEADERS_NOTION
+from config import CAL_SECRET, TZ, ADMIN_PHONES, HEADERS_NOTION, NOTION_STATUS_VALUE
 from models import (
     CalWebhookPayload,
     ScheduleTestRequest,
@@ -99,7 +99,7 @@ async def cal_webhook(
     if page_id:
         print(f"Página do Notion encontrada: {page_id}")
         notion_update_meeting_date(page_id, formatted_pt)
-        notion_update_status(page_id, "Agendado reunião")
+        notion_update_status(page_id, NOTION_STATUS_VALUE)
         if attendee.email:
             notion_update_email(page_id, attendee.email)
     else:
@@ -109,7 +109,7 @@ async def cal_webhook(
             email=attendee.email,
             phone=whatsapp,
             meeting_date=formatted_pt,
-            status="Agendado reunião"
+            status=NOTION_STATUS_VALUE
         )
 
     # Enviar notificações e agendar mensagens
