@@ -1,0 +1,8 @@
+fastapi
+httpx
+APScheduler
+pydantic
+pytz
+python-dotenv
+requests
+uvicorn 
