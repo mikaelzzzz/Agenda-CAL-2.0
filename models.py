@@ -11,7 +11,7 @@ class Attendee(BaseModel):
 
 
 class UserFieldsResponses(BaseModel):
-    Whatsapp: Optional[dict] = None
+    WhatsApp: Optional[dict] = None
 
 
 class Booking(BaseModel):

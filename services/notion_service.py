@@ -87,4 +87,41 @@ def notion_update_email(page_id: str, email: str) -> None:
         print(f"E-mail no Notion atualizado com sucesso: {resp.status_code}")
     except Exception as e:
         print(f"Erro ao atualizar e-mail no Notion: {str(e)}")
-        # Não levantar exceção para não parar o fluxo principal 
+        # Não levantar exceção para não parar o fluxo principal
+
+def notion_create_page(name: str, email: str | None, phone: str | None) -> str | None:
+    """Cria uma nova página no Notion para um novo lead."""
+    print(f"Criando nova página no Notion para: {name}")
+
+    properties = {
+        "Nome": {
+            "title": [{"text": {"content": name}}]
+        }
+    }
+    if email:
+        properties["Email"] = {"email": email}
+    if phone:
+        clean_phone = ''.join(filter(str.isdigit, phone))
+        if not clean_phone.startswith('55'):
+            clean_phone = '55' + clean_phone
+        properties["Telefone"] = {"phone_number": clean_phone}
+
+    payload = {
+        "parent": {"database_id": NOTION_DB},
+        "properties": properties
+    }
+
+    try:
+        resp = httpx.post(
+            "https://api.notion.com/v1/pages",
+            headers=HEADERS_NOTION,
+            json=payload,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        new_page_id = resp.json()["id"]
+        print(f"✓ Nova página criada no Notion com sucesso: {new_page_id}")
+        return new_page_id
+    except Exception as e:
+        print(f"✗ Erro ao criar página no Notion: {str(e)}")
+        return None 
