@@ -18,7 +18,7 @@ class Booking(BaseModel):
     start_time: str = Field(..., alias="startTime")
     end_time: str = Field(..., alias="endTime")
     attendees: List[Attendee]
-    uid: str
+    uid: Optional[str] = None
     userFieldsResponses: Optional[UserFieldsResponses] = None
     eventDescription: Optional[str] = None
     videoCallData: Optional[dict] = None
