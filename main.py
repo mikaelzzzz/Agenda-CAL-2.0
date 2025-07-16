@@ -139,9 +139,10 @@ async def cal_webhook(
         schedule_lead_messages(scheduler, attendee.name, whatsapp, start_dt)
         print("✓ Notificações para o lead enviadas e agendadas.")
 
-    # Notificações para admins
-    schedule_messages(scheduler, attendee.name, start_dt)
-    print("✓ Lembretes para admins agendados.")
+    # Notificações para admins, somente se tivermos uma página no Notion
+    if page_id:
+        schedule_messages(scheduler, attendee.name, start_dt, page_id, whatsapp)
+        print("✓ Lembretes para admins agendados.")
 
     return {"success": True}
 
@@ -208,12 +209,10 @@ def test_send_lead_message(req: SendLeadMessageRequest = Body(...)):
             msg = f"Olá {req.first_name}, amanhã temos nossa reunião às {meeting_str}. Ansiosos para falar com você!"
         elif req.which == "4h":
             msg = f"Oi {req.first_name}, tudo certo para a nossa reunião hoje às {meeting_str}?"
-        elif req.which == "after":
-            msg = f"{req.first_name}, obrigado pela reunião! Qualquer dúvida, estamos à disposição."
         else:
-            return {"success": False, "error": "Tipo de mensagem inválido. Use: 1d, 4h ou after."}
+            return {"success": False, "error": "Tipo de mensagem inválido. Use: 1d ou 4h."}
         
-        when = {"1d": dt - timedelta(days=1), "4h": dt - timedelta(hours=4), "after": dt + timedelta(hours=1)}[req.which]
+        when = {"1d": dt - timedelta(days=1), "4h": dt - timedelta(hours=4)}[req.which]
 
         if req.send_now:
             send_wa_message(phone, msg)
