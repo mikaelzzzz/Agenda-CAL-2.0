@@ -90,7 +90,7 @@ def send_immediate_booking_notifications(
     # 2️⃣ link do teste de nivelamento
     msg2 = (
         "Antes disso, que tal fazer nosso teste de nivelamento?\n"
-        "👉 https://student.flexge.com/v2/placement/karollinyeloica\n"
+        "👉 https://student.flexge.com/v2/placement/karoleloi\n"
         "Faça o teste sem pressa, no seu tempo, ok? 😉"
     )
 
