@@ -73,6 +73,7 @@ def send_immediate_booking_notifications(
     start_dt: datetime,
 ) -> None:
     """Envia a mensagem de confirmação imediata com o teste de nivelamento."""
+    first_name = attendee_name.split(' ')[0]
     zoom_url = (
         "https://us06web.zoom.us/j/8902841864?"
         "pwd=OIjXN37C7fjELriVg4y387EbXUSVsR.1"
@@ -80,7 +81,7 @@ def send_immediate_booking_notifications(
 
     # Mensagem combinada: confirmação + Zoom + teste de nivelamento
     confirmation_message = (
-        f"Pronto, {attendee_name}!!\n\n"
+        f"Pronto, {first_name}!!\n\n"
         f"✅ Sua reunião está confirmada para *{start_dt.strftime('%d/%m')}* "
         f"às *{start_dt.strftime('%H:%M')}*.\n\n"
         "🖥️ Acesse a sala da reunião no link abaixo 👇\n"
@@ -93,7 +94,7 @@ def send_immediate_booking_notifications(
         send_wa_message(whatsapp, confirmation_message)
 
     # ------------------------------------------------------------------
-    # Mensagem para o time de vendas continua igual
+    # Mensagem para o time de vendas continua igual (com nome completo)
     formatted_pt = format_pt_br(start_dt)
     sales_message = (
         "💼 Nova Reunião Agendada!\n\n"

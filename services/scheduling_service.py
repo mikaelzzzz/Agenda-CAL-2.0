@@ -8,7 +8,7 @@ def schedule_messages(scheduler: AsyncIOScheduler, first_name: str, meeting_dt: 
     meeting_str = meeting_dt.strftime("%H:%M")
     notion_page_url = f"https://www.notion.so/{page_id.replace('-', '')}"
     
-    # Monta a mensagem base
+    # Monta a mensagem base - admins veem o nome completo
     base_message_8am = f"🔔 Lembrete de Reunião: Hoje temos um encontro com o lead *{first_name}* às *{meeting_str}*."
     base_message_1h = f"⏰ Atenção: A reunião com *{first_name}* começa em 1 hora, às *{meeting_str}*."
     
@@ -43,11 +43,13 @@ def schedule_messages(scheduler: AsyncIOScheduler, first_name: str, meeting_dt: 
 
 
 def schedule_lead_messages(scheduler: AsyncIOScheduler, first_name: str, phone: str, dt: datetime):
+    """Agenda lembretes para o lead usando apenas o primeiro nome."""
+    lead_first_name = first_name.split(' ')[0]
     meeting_str = dt.strftime("%H:%M")
     
     # Mensagem de 1 dia antes, agora com o vídeo.
     one_day_before_message = (
-        f"Hello Hello, {first_name}! Amanhã temos nossa reunião às {meeting_str}. Estamos ansiosos para falar com você!\n\n"
+        f"Hello Hello, {lead_first_name}! Amanhã temos nossa reunião às {meeting_str}. Estamos ansiosos para falar com você!\n\n"
         "Aproveite e assista a este vídeo para entender por que nosso método é diferenciado!\n"
         "👉 https://www.youtube.com/watch?v=fKepCx3lMZI"
     )
@@ -62,7 +64,7 @@ def schedule_lead_messages(scheduler: AsyncIOScheduler, first_name: str, phone: 
     scheduler.add_job(
         send_wa_message,
         trigger=DateTrigger(run_date=dt - timedelta(hours=4)),
-        args=[phone, f"Hello {first_name}, tudo certo para a nossa reunião hoje às {meeting_str}?"],
+        args=[phone, f"Hello {lead_first_name}, tudo certo para a nossa reunião hoje às {meeting_str}?"],
         id=f"lead_whatsapp_{dt.timestamp()}_4h",
         replace_existing=True,
     ) 
