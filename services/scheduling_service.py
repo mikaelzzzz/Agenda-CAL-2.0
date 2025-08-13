@@ -44,10 +44,18 @@ def schedule_messages(scheduler: AsyncIOScheduler, first_name: str, meeting_dt: 
 
 def schedule_lead_messages(scheduler: AsyncIOScheduler, first_name: str, phone: str, dt: datetime):
     meeting_str = dt.strftime("%H:%M")
+    
+    # Mensagem de 1 dia antes, agora com o vídeo.
+    one_day_before_message = (
+        f"Hi {first_name}, amanhã temos nossa reunião às {meeting_str}. Estamos ansiosos para falar com você!\n\n"
+        "Aproveite e assista a este vídeo para entender por que nosso método é diferenciado!\n"
+        "👉 https://www.youtube.com/watch?v=fKepCx3lMZI"
+    )
+
     scheduler.add_job(
         send_wa_message,
         trigger=DateTrigger(run_date=dt - timedelta(days=1)),
-        args=[phone, f"Hi {first_name}, amanhã temos nossa reunião às {meeting_str}. Estamos ansiosos para falar com você!"],
+        args=[phone, one_day_before_message],
         id=f"lead_whatsapp_{dt.timestamp()}_1day",
         replace_existing=True,
     )

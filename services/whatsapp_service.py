@@ -72,40 +72,28 @@ def send_immediate_booking_notifications(
     whatsapp: str | None,
     start_dt: datetime,
 ) -> None:
-    """Envia três mensagens separadas: confirmação + Zoom, teste, vídeo."""
+    """Envia a mensagem de confirmação imediata com o teste de nivelamento."""
     zoom_url = (
         "https://us06web.zoom.us/j/8902841864?"
         "pwd=OIjXN37C7fjELriVg4y387EbXUSVsR.1"
     )
 
-    # 1️⃣ confirmação + link do Zoom
-    msg1 = (
+    # Mensagem combinada: confirmação + Zoom + teste de nivelamento
+    confirmation_message = (
         f"Pronto, {attendee_name}!!\n\n"
         f"✅ Sua reunião está confirmada para *{start_dt.strftime('%d/%m')}* "
         f"às *{start_dt.strftime('%H:%M')}*.\n\n"
         "🖥️ Acesse a sala da reunião no link abaixo 👇\n"
-        f"{zoom_url}"
-    )
-
-    # 2️⃣ link do teste de nivelamento
-    msg2 = (
+        f"{zoom_url}\n\n"
+        "---\n\n"
         "Antes disso, que tal fazer nosso teste de nivelamento?\n"
         "👉 https://student.flexge.com/v2/placement/karoleloi\n"
         "Faça o teste sem pressa, no seu tempo, ok? 😉"
     )
 
-    # 3️⃣ link do vídeo sobre o método
-    msg3 = (
-        "Aproveite e assista a este vídeo para entender por que nosso método "
-        "é diferenciado!\n"
-        "👉 https://www.youtube.com/watch?v=fKepCx3lMZI"
-    )
-
     if whatsapp:
-        # Envia cada mensagem individualmente
-        send_wa_message(whatsapp, msg1)
-        send_wa_message(whatsapp, msg2)
-        send_wa_message(whatsapp, msg3)
+        # Envia a mensagem combinada
+        send_wa_message(whatsapp, confirmation_message)
 
     # ------------------------------------------------------------------
     # Mensagem para o time de vendas continua igual
