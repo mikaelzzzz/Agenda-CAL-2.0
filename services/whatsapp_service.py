@@ -85,10 +85,7 @@ def send_immediate_booking_notifications(
         f"às *{start_dt.strftime('%H:%M')}*.\n\n"
         "🖥️ Acesse a sala da reunião no link abaixo 👇\n"
         f"{zoom_url}\n\n"
-        "---\n\n"
-        "Antes disso, que tal fazer nosso teste de nivelamento?\n"
-        "👉 https://student.flexge.com/v2/placement/karoleloi\n"
-        "Faça o teste sem pressa, no seu tempo, ok? 😉"
+        "Acesse aqui o seu teste de nivelamento: https://student.flexge.com/v2/placement/karoleloi"
     )
 
     if whatsapp:

@@ -47,7 +47,7 @@ def schedule_lead_messages(scheduler: AsyncIOScheduler, first_name: str, phone: 
     
     # Mensagem de 1 dia antes, agora com o vídeo.
     one_day_before_message = (
-        f"Hi {first_name}, amanhã temos nossa reunião às {meeting_str}. Estamos ansiosos para falar com você!\n\n"
+        f"Hello Hello, {first_name}! Amanhã temos nossa reunião às {meeting_str}. Estamos ansiosos para falar com você!\n\n"
         "Aproveite e assista a este vídeo para entender por que nosso método é diferenciado!\n"
         "👉 https://www.youtube.com/watch?v=fKepCx3lMZI"
     )
