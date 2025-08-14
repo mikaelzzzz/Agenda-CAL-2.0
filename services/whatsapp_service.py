@@ -79,14 +79,14 @@ def send_immediate_booking_notifications(
         "pwd=OIjXN37C7fjELriVg4y387EbXUSVsR.1"
     )
 
-    # Mensagem combinada: confirmação + Zoom + teste de nivelamento
+    # Mensagem combinada: confirmação + teste de nivelamento + Zoom
     confirmation_message = (
         f"Pronto, {first_name}!!\n\n"
         f"✅ Sua reunião está confirmada para *{start_dt.strftime('%d/%m')}* "
         f"às *{start_dt.strftime('%H:%M')}*.\n\n"
+        "📝 Acesse aqui o seu teste de nivelamento: https://student.flexge.com/v2/placement/karoleloi\n\n"
         "🖥️ Acesse a sala da reunião no link abaixo 👇\n"
-        f"{zoom_url}\n\n"
-        "Acesse aqui o seu teste de nivelamento: https://student.flexge.com/v2/placement/karoleloi"
+        "https://zoom.us/j/8902841864"
     )
 
     if whatsapp:
