@@ -8,3 +8,5 @@ requests
 uvicorn
 SQLAlchemy
 psycopg2-binary 
+colorlog
+# Dependencies for Cal.com webhook integration
