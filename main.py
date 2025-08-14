@@ -29,6 +29,9 @@ from services.whatsapp_service import send_immediate_booking_notifications, send
 from services.scheduling_service import schedule_messages, schedule_lead_messages
 from utils import format_pt_br
 
+# NOVA IMPORTAÇÃO: Serviço de contexto da Zaia
+from services.zaia_context_service import ZaiaContextService
+
 # -----------------------------------------------------------------------------
 # Scheduler Setup with Persistent Job Store
 # -----------------------------------------------------------------------------
@@ -36,6 +39,9 @@ jobstores = {
     'default': SQLAlchemyJobStore(url=DATABASE_URL)
 }
 scheduler = AsyncIOScheduler(jobstores=jobstores)
+
+# ✅ NOVO: Inicializa o serviço de contexto da Zaia
+zaia_context = ZaiaContextService()
 
 # -----------------------------------------------------------------------------
 # FastAPI app & scheduler lifecycle
@@ -138,6 +144,14 @@ async def cal_webhook(
         send_immediate_booking_notifications(attendee.name, whatsapp, start_dt)
         schedule_lead_messages(scheduler, attendee.name, whatsapp, start_dt)
         print("✓ Notificações para o lead enviadas e agendadas.")
+        
+        # ✅ NOVO: Envia contexto para a Zaia sobre o agendamento
+        try:
+            context_message = f"Reunião agendada para {attendee.name} em {formatted_pt}"
+            zaia_context.send_meeting_confirmation(whatsapp, context_message)
+            print("✓ Contexto enviado para a Zaia com sucesso.")
+        except Exception as e:
+            print(f"⚠️ Erro ao enviar contexto para Zaia: {e}")
 
     # Notificações para admins, somente se tivermos uma página no Notion
     if page_id:
@@ -216,9 +230,25 @@ def test_send_lead_message(req: SendLeadMessageRequest = Body(...)):
 
         if req.send_now:
             send_wa_message(phone, msg)
+            
+            # ✅ NOVO: Envia contexto para a Zaia
+            try:
+                zaia_context.send_message_to_zaia(phone, msg, "test_message")
+                print("✓ Contexto enviado para a Zaia.")
+            except Exception as e:
+                print(f"⚠️ Erro ao enviar contexto para Zaia: {e}")
+            
             return {"success": True, "sent_now": True, "phone": phone, "message": msg}
         else:
             scheduler.add_job(send_wa_message, trigger=DateTrigger(run_date=when), args=[phone, msg], id=f"lead_whatsapp_{dt.timestamp()}_{req.which}", replace_existing=True)
+            
+            # ✅ NOVO: Envia contexto para a Zaia sobre a mensagem agendada
+            try:
+                zaia_context.send_message_to_zaia(phone, f"Mensagem agendada: {msg}", "scheduled_message")
+                print("✓ Contexto de mensagem agendada enviado para a Zaia.")
+            except Exception as e:
+                print(f"⚠️ Erro ao enviar contexto para Zaia: {e}")
+            
             return {"success": True, "scheduled_for": when.isoformat(), "phone": phone, "message": msg}
     except Exception as e:
-        return {"success": False, "error": str(e)} 
+        return {"success": False, "error": str(e)}

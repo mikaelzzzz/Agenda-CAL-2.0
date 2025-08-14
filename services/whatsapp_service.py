@@ -3,8 +3,44 @@ import json
 from datetime import datetime
 from config import ZAPI_CLIENT_TOKEN, ZAPI_INSTANCE, ZAPI_TOKEN, ADMIN_PHONES
 from utils import format_pt_br
+from services.zaia_context_service import ZaiaContextService
 
-def send_wa_message(phone: str, message: str, has_link: bool = False, link_data: dict | None = None) -> None:
+# URL do webhook para marcar mensagens do sistema
+WEBHOOK_URL = "https://karolvendas-voz-clonada.onrender.com/webhook"
+
+# Inicializa o serviço de contexto da Zaia
+zaia_context = ZaiaContextService()
+
+def mark_system_message(phone: str, message_type: str):
+    """
+    Marca mensagem do sistema para evitar perda de contexto no agente da Zaia.
+    """
+    try:
+        # Normaliza o telefone
+        clean_phone = ''.join(filter(str.isdigit, str(phone)))
+        if not clean_phone.startswith('55'):
+            clean_phone = '55' + clean_phone
+        
+        webhook_data = {
+            "type": "system_message_sent",
+            "phone": clean_phone,
+            "message_type": message_type
+        }
+        
+        response = requests.post(WEBHOOK_URL, json=webhook_data, timeout=10)
+        
+        if response.status_code == 200:
+            print(f"✅ Contexto marcado para {clean_phone}: {message_type}")
+            return True
+        else:
+            print(f"⚠️ Erro ao marcar contexto: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Erro ao marcar contexto: {e}")
+        return False
+
+def send_wa_message(phone: str, message: str, has_link: bool = False, link_data: dict | None = None, message_type: str = "system") -> None:
     """Send a WhatsApp message using Z-API."""
     # Limpar o número de telefone (remover caracteres não numéricos)
     clean_phone = ''.join(filter(str.isdigit, phone))
@@ -58,6 +94,14 @@ def send_wa_message(phone: str, message: str, has_link: bool = False, link_data:
         else:
             print("Mensagem enviada com sucesso!")
             
+            # Envia para a Zaia para preservar contexto
+            if message_type != "admin":  # Não envia contexto para mensagens administrativas
+                zaia_context.send_message_to_zaia(clean_phone, message, message_type)
+            
+            # Marca no contexto da Zaia APÓS enviar com sucesso
+            if message_type != "admin":  # Não marca mensagens para admins
+                mark_system_message(clean_phone, message_type)
+            
         response.raise_for_status()
     except Exception as e:
         print(f"Erro ao enviar mensagem WhatsApp: {str(e)}")
@@ -65,7 +109,7 @@ def send_wa_message(phone: str, message: str, has_link: bool = False, link_data:
 
 def send_wa_bulk(message: str) -> None:
     for phone in ADMIN_PHONES:
-        send_wa_message(phone, message)
+        send_wa_message(phone, message, message_type="admin")
 
 def send_immediate_booking_notifications(
     attendee_name: str,
@@ -90,16 +134,16 @@ def send_immediate_booking_notifications(
     )
 
     if whatsapp:
-        # Envia a mensagem combinada
-        send_wa_message(whatsapp, confirmation_message)
+        # Envia a mensagem combinada e marca como confirmação de reunião
+        send_wa_message(whatsapp, confirmation_message, message_type="meeting_confirmation")
 
     # ------------------------------------------------------------------
     # Mensagem para o time de vendas continua igual (com nome completo)
     formatted_pt = format_pt_br(start_dt)
     sales_message = (
-        "💼 Nova Reunião Agendada!\n\n"
-        f"👤 Cliente: {attendee_name}\n"
+        "�� Nova Reunião Agendada!\n\n"
+        f"�� Cliente: {attendee_name}\n"
         f"📅 Data: {formatted_pt}"
     )
     for admin_phone in ADMIN_PHONES:
-        send_wa_message(admin_phone, sales_message) 
+        send_wa_message(admin_phone, sales_message, message_type="admin")
