@@ -2,10 +2,18 @@
 import httpx
 import logging
 from typing import Optional
-from config import ZAIA_API_KEY, ZAIA_AGENT_ID, ZAIA_BASE_URL
 
 # Configuração de logging consistente com seu padrão
 logger = logging.getLogger(__name__)
+
+# Importa as variáveis da Zaia de forma segura
+try:
+    from config import ZAIA_API_KEY, ZAIA_AGENT_ID, ZAIA_BASE_URL
+except ImportError:
+    # Se as variáveis não existirem, define valores padrão
+    ZAIA_API_KEY = None
+    ZAIA_AGENT_ID = None
+    ZAIA_BASE_URL = "https://api.zaia.app"
 
 class ZaiaContextService:
     """
