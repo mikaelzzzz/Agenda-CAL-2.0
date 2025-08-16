@@ -105,8 +105,8 @@ def send_wa_message(phone: str, message: str, has_link: bool = False, link_data:
             if message_type != "admin":  # Não envia contexto para mensagens administrativas
                 zaia_context.send_message_to_zaia(clean_phone, message, message_type)
             
-            # Marca no contexto da Zaia APÓS enviar com sucesso
-            if message_type != "admin":  # Não marca mensagens para admins
+            # ✅ CORRIGIDO: Só marca no contexto para mensagens imediatas, não para lembretes agendados
+            if message_type not in ["admin", "reminder"]:  # Não marca mensagens para admins nem lembretes
                 mark_system_message(clean_phone, message_type)
             
         response.raise_for_status()

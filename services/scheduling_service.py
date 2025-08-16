@@ -58,13 +58,8 @@ def schedule_lead_messages(scheduler: AsyncIOScheduler, first_name: str, phone: 
         "👉 https://www.youtube.com/watch?v=fKepCx3lMZI"
     )
 
-    # Envia contexto para a Zaia sobre as mensagens agendadas
-    try:
-        zaia_context.send_reminder(phone, f"Lembrete agendado: {one_day_before_message}")
-        zaia_context.send_reminder(phone, f"Lembrete agendado: Hello {lead_first_name}, tudo certo para a nossa reunião hoje às {meeting_str}?")
-        print(f"✓ Contexto de lembretes agendados enviado para a Zaia: {phone}")
-    except Exception as e:
-        print(f"⚠️ Erro ao enviar contexto de lembretes para Zaia: {e}")
+    # ✅ REMOVIDO: Envio imediato para a Zaia no momento do agendamento
+    # As mensagens só serão enviadas para a Zaia quando o scheduler executar
 
     scheduler.add_job(
         send_wa_message,

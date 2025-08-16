@@ -242,12 +242,8 @@ def test_send_lead_message(req: SendLeadMessageRequest = Body(...)):
         else:
             scheduler.add_job(send_wa_message, trigger=DateTrigger(run_date=when), args=[phone, msg], id=f"lead_whatsapp_{dt.timestamp()}_{req.which}", replace_existing=True)
             
-            # ✅ NOVO: Envia contexto para a Zaia sobre a mensagem agendada
-            try:
-                ZaiaContextService().send_message_to_zaia(phone, f"Mensagem agendada: {msg}", "scheduled_message")
-                print("✓ Contexto de mensagem agendada enviado para a Zaia.")
-            except Exception as e:
-                print(f"⚠️ Erro ao enviar contexto para Zaia: {e}")
+            # ✅ REMOVIDO: Envio imediato para a Zaia sobre mensagem agendada
+            # A mensagem só será enviada para a Zaia quando o scheduler executar
             
             return {"success": True, "scheduled_for": when.isoformat(), "phone": phone, "message": msg}
     except Exception as e:
