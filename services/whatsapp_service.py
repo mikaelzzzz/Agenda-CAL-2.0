@@ -6,7 +6,8 @@ from utils import format_pt_br
 from services.zaia_context_service import ZaiaContextService
 
 # URL do webhook para marcar mensagens do sistema
-WEBHOOK_URL = "https://karolvendas-voz-clonada.onrender.com/webhook"
+# ✅ CORRIGIDO: URL corrigida para o serviço correto
+WEBHOOK_URL = "https://agenda-cal-2-0.onrender.com/webhook"
 
 # Inicializa o serviço de contexto da Zaia
 zaia_context = ZaiaContextService()
@@ -27,13 +28,19 @@ def mark_system_message(phone: str, message_type: str):
             "message_type": message_type
         }
         
-        response = requests.post(WEBHOOK_URL, json=webhook_data, timeout=10)
-        
-        if response.status_code == 200:
-            print(f"✅ Contexto marcado para {clean_phone}: {message_type}")
-            return True
-        else:
-            print(f"⚠️ Erro ao marcar contexto: {response.status_code}")
+        # ✅ MELHORADO: Tratamento de erro mais robusto
+        try:
+            response = requests.post(WEBHOOK_URL, json=webhook_data, timeout=10)
+            
+            if response.status_code == 200:
+                print(f"✅ Contexto marcado para {clean_phone}: {message_type}")
+                return True
+            else:
+                print(f"⚠️ Erro ao marcar contexto: {response.status_code} - {response.text}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"⚠️ Erro de conexão ao marcar contexto: {e}")
             return False
             
     except Exception as e:

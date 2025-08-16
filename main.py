@@ -40,8 +40,8 @@ jobstores = {
 }
 scheduler = AsyncIOScheduler(jobstores=jobstores)
 
-# ✅ NOVO: Inicializa o serviço de contexto da Zaia
-zaia_context = ZaiaContextService()
+# ✅ REMOVIDO: Inicialização duplicada do ZaiaContextService
+# O serviço será inicializado apenas quando necessário em whatsapp_service.py
 
 # -----------------------------------------------------------------------------
 # FastAPI app & scheduler lifecycle
@@ -148,7 +148,7 @@ async def cal_webhook(
         # ✅ NOVO: Envia contexto para a Zaia sobre o agendamento
         try:
             context_message = f"Reunião agendada para {attendee.name} em {formatted_pt}"
-            zaia_context.send_meeting_confirmation(whatsapp, context_message)
+            ZaiaContextService().send_meeting_confirmation(whatsapp, context_message)
             print("✓ Contexto enviado para a Zaia com sucesso.")
         except Exception as e:
             print(f"⚠️ Erro ao enviar contexto para Zaia: {e}")
@@ -233,7 +233,7 @@ def test_send_lead_message(req: SendLeadMessageRequest = Body(...)):
             
             # ✅ NOVO: Envia contexto para a Zaia
             try:
-                zaia_context.send_message_to_zaia(phone, msg, "test_message")
+                ZaiaContextService().send_message_to_zaia(phone, msg, "test_message")
                 print("✓ Contexto enviado para a Zaia.")
             except Exception as e:
                 print(f"⚠️ Erro ao enviar contexto para Zaia: {e}")
@@ -244,7 +244,7 @@ def test_send_lead_message(req: SendLeadMessageRequest = Body(...)):
             
             # ✅ NOVO: Envia contexto para a Zaia sobre a mensagem agendada
             try:
-                zaia_context.send_message_to_zaia(phone, f"Mensagem agendada: {msg}", "scheduled_message")
+                ZaiaContextService().send_message_to_zaia(phone, f"Mensagem agendada: {msg}", "scheduled_message")
                 print("✓ Contexto de mensagem agendada enviado para a Zaia.")
             except Exception as e:
                 print(f"⚠️ Erro ao enviar contexto para Zaia: {e}")
@@ -252,3 +252,65 @@ def test_send_lead_message(req: SendLeadMessageRequest = Body(...)):
             return {"success": True, "scheduled_for": when.isoformat(), "phone": phone, "message": msg}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+# -----------------------------------------------------------------------------
+# Test endpoints
+# -----------------------------------------------------------------------------
+@app.get("/test/zaia-config")
+async def test_zaia_config():
+    """Testa a configuração da Zaia."""
+    try:
+        zaia_service = ZaiaContextService()
+        return {
+            "enabled": zaia_service.enabled,
+            "agent_id": zaia_service.agent_id if zaia_service.enabled else None,
+            "base_url": zaia_service.base_url if zaia_service.enabled else None,
+            "api_key_configured": bool(zaia_service.api_key) if zaia_service.enabled else False
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/test/zaia-send")
+async def test_zaia_send():
+    """Testa o envio de uma mensagem para a Zaia."""
+    try:
+        zaia_service = ZaiaContextService()
+        if not zaia_service.enabled:
+            return {"error": "Zaia não está habilitada"}
+        
+        # Testa com um número fictício
+        test_phone = "5511999999999"
+        test_message = "Teste de integração com Zaia - " + datetime.now().strftime("%H:%M:%S")
+        
+        result = zaia_service.send_message_to_zaia(test_phone, test_message, "test")
+        return {
+            "success": result,
+            "phone": test_phone,
+            "message": test_message,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/test/schedule-messages")
+async def test_schedule_messages():
+    """Testa o agendamento de mensagens."""
+    try:
+        # Testa com uma data futura
+        test_dt = datetime.now() + timedelta(minutes=2)
+        test_name = "Teste"
+        test_page_id = "test-page-id"
+        test_whatsapp = "5511999999999"
+        
+        schedule_messages(scheduler, test_name, test_dt, test_page_id, test_whatsapp)
+        return {
+            "success": True,
+            "scheduled_for": test_dt.isoformat(),
+            "message": "Mensagens de teste agendadas para admins"
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

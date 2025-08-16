@@ -1,7 +1,12 @@
+# services/scheduling_service.py
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from services.whatsapp_service import send_wa_bulk, send_wa_message
+from services.zaia_context_service import ZaiaContextService
+
+# Inicializa o serviço de contexto da Zaia
+zaia_context = ZaiaContextService()
 
 def schedule_messages(scheduler: AsyncIOScheduler, first_name: str, meeting_dt: datetime, page_id: str, whatsapp: str | None) -> None:
     """Agenda lembretes para a equipe de vendas (admins) com links para Notion e WhatsApp."""
@@ -41,7 +46,6 @@ def schedule_messages(scheduler: AsyncIOScheduler, first_name: str, meeting_dt: 
             replace_existing=True,
         )
 
-
 def schedule_lead_messages(scheduler: AsyncIOScheduler, first_name: str, phone: str, dt: datetime):
     """Agenda lembretes para o lead usando apenas o primeiro nome."""
     lead_first_name = first_name.split(' ')[0]
@@ -54,17 +58,25 @@ def schedule_lead_messages(scheduler: AsyncIOScheduler, first_name: str, phone: 
         "👉 https://www.youtube.com/watch?v=fKepCx3lMZI"
     )
 
+    # Envia contexto para a Zaia sobre as mensagens agendadas
+    try:
+        zaia_context.send_reminder(phone, f"Lembrete agendado: {one_day_before_message}")
+        zaia_context.send_reminder(phone, f"Lembrete agendado: Hello {lead_first_name}, tudo certo para a nossa reunião hoje às {meeting_str}?")
+        print(f"✓ Contexto de lembretes agendados enviado para a Zaia: {phone}")
+    except Exception as e:
+        print(f"⚠️ Erro ao enviar contexto de lembretes para Zaia: {e}")
+
     scheduler.add_job(
         send_wa_message,
         trigger=DateTrigger(run_date=dt - timedelta(days=1)),
-        args=[phone, one_day_before_message],
+        args=[phone, one_day_before_message, False, None, "reminder"],
         id=f"lead_whatsapp_{dt.timestamp()}_1day",
         replace_existing=True,
     )
     scheduler.add_job(
         send_wa_message,
         trigger=DateTrigger(run_date=dt - timedelta(hours=4)),
-        args=[phone, f"Hello {lead_first_name}, tudo certo para a nossa reunião hoje às {meeting_str}?"],
+        args=[phone, f"Hello {lead_first_name}, tudo certo para a nossa reunião hoje às {meeting_str}?", False, None, "reminder"],
         id=f"lead_whatsapp_{dt.timestamp()}_4h",
         replace_existing=True,
-    ) 
+    )

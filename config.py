@@ -33,9 +33,20 @@ NOTION_DATE_PROP = os.getenv("NOTION_DATE_PROP", "Data Agendada pelo Lead")
 # O nome da opção de status que deve ser definida quando uma reunião é agendada.
 NOTION_STATUS_VALUE = os.getenv("NOTION_STATUS_VALUE", "Agendado reunião")
 
-
 # --- Z-API Config ---
 ZAPI_INSTANCE = os.getenv("ZAPI_INSTANCE")
 ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 ZAPI_CLIENT_TOKEN = os.getenv("ZAPI_CLIENT_TOKEN")
-ADMIN_PHONES = [p.strip() for p in os.getenv("ADMIN_PHONES", "").split(",") if p] 
+ADMIN_PHONES = [p.strip() for p in os.getenv("ADMIN_PHONES", "").split(",") if p]
+
+# --- Zaia API Config (NOVO) ---
+# Configurações para enviar mensagens para a Zaia e preservar contexto
+ZAIA_API_KEY = os.getenv("ZAIA_API_KEY")
+ZAIA_AGENT_ID = os.getenv("ZAIA_AGENT_ID")
+ZAIA_BASE_URL = os.getenv("ZAIA_BASE_URL", "https://api.zaia.app")
+
+# Validação das configurações da Zaia
+if not ZAIA_API_KEY:
+    print("⚠️  AVISO: ZAIA_API_KEY não configurada. Contexto da Zaia será desabilitado.")
+if not ZAIA_AGENT_ID:
+    print("⚠️  AVISO: ZAIA_AGENT_ID não configurado. Contexto da Zaia será desabilitado.")

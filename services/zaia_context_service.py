@@ -25,6 +25,8 @@ class ZaiaContextService:
         # Valida se as configurações estão disponíveis
         if not ZAIA_API_KEY or not ZAIA_AGENT_ID:
             print("❌ Configurações da Zaia incompletas. Contexto será desabilitado.")
+            print(f"   ZAIA_API_KEY: {'✅ Definida' if ZAIA_API_KEY else '❌ Não definida'}")
+            print(f"   ZAIA_AGENT_ID: {'✅ Definida' if ZAIA_AGENT_ID else '❌ Não definida'}")
             self.enabled = False
         else:
             self.enabled = True
@@ -32,6 +34,9 @@ class ZaiaContextService:
             self.agent_id = ZAIA_AGENT_ID
             self.base_url = ZAIA_BASE_URL
             print(f"✅ Serviço de contexto da Zaia inicializado com sucesso")
+            print(f"   Agent ID: {self.agent_id}")
+            print(f"   Base URL: {self.base_url}")
+            print(f"   API Key: {'✅ Configurada' if self.api_key else '❌ Não configurada'}")
     
     def send_message_to_zaia(self, phone: str, message: str, message_type: str = "system") -> bool:
         """
@@ -76,18 +81,24 @@ class ZaiaContextService:
                 }
             }
             
-            print(f"Enviando mensagem para Zaia: {clean_phone} - {message_type}")
-            print(f"Payload Zaia: {payload}")
+            print(f"📤 Enviando mensagem para Zaia:")
+            print(f"   📱 Telefone: {clean_phone}")
+            print(f"   🏷️  Tipo: {message_type}")
+            print(f"   🌐 URL: {url}")
+            print(f"   🔑 Agent ID: {self.agent_id}")
             
             # Faz a requisição para a Zaia usando httpx (consistente com seu padrão)
             with httpx.Client(timeout=15.0) as client:
                 response = client.post(url, headers=headers, json=payload)
             
+            print(f"📡 Resposta da Zaia: {response.status_code}")
+            
             if response.status_code == 200:
                 print(f"✅ Mensagem enviada para Zaia com sucesso: {message_type}")
                 return True
             else:
-                print(f"⚠️ Erro ao enviar para Zaia: {response.status_code} - {response.text}")
+                print(f"⚠️ Erro ao enviar para Zaia: {response.status_code}")
+                print(f"   📄 Resposta: {response.text}")
                 return False
                 
         except Exception as e:
