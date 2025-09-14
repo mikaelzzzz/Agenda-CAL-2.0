@@ -75,7 +75,7 @@ class PlacementTestService:
     async def check_placement_test_status(self, email: str) -> Optional[Dict[str, Any]]:
         """Verifica o status do teste de nivelamento para um email específico."""
         try:
-            url = f"{self.base_url}?page=1"
+            url = f"{self.base_url}/placement-tests?page=1"
             headers = {
                 "accept": "application/json",
                 "x-api-key": self.api_key
