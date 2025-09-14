@@ -1,10 +1,42 @@
 import httpx
 import json
-from typing import Optional
+from typing import Optional, Dict, Any
 from config import (
     NOTION_DB, HEADERS_NOTION, NOTION_PHONE_PROP, NOTION_EMAIL_PROP,
     NOTION_NAME_PROP, NOTION_STATUS_PROP, NOTION_DATE_PROP
 )
+
+# Cache para data_source_id para evitar chamadas desnecessárias
+_data_source_cache: Dict[str, str] = {}
+
+def get_data_source_id(database_id: str) -> Optional[str]:
+    """Descobre o data_source_id para um database_id específico."""
+    # Verifica cache primeiro
+    if database_id in _data_source_cache:
+        return _data_source_cache[database_id]
+    
+    try:
+        # Chama a nova API para descobrir data sources
+        url = f"https://api.notion.com/v1/databases/{database_id}"
+        resp = httpx.get(url, headers=HEADERS_NOTION, timeout=15)
+        resp.raise_for_status()
+        
+        data = resp.json()
+        data_sources = data.get("data_sources", [])
+        
+        if data_sources:
+            # Pega o primeiro data source (compatibilidade com databases de fonte única)
+            data_source_id = data_sources[0]["id"]
+            _data_source_cache[database_id] = data_source_id
+            print(f"✓ Data source ID descoberto: {data_source_id}")
+            return data_source_id
+        else:
+            print(f"⚠️ Nenhum data source encontrado para database {database_id}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Erro ao descobrir data source ID: {e}")
+        return None
 
 def clean_phone_number(phone: str) -> str:
     """Limpa e padroniza o número de telefone para o formato 55..."""
@@ -24,6 +56,12 @@ def notion_find_page(identifier: str | None, by: str = "phone") -> Optional[str]
     if not identifier:
         return None
 
+    # Descobre o data_source_id primeiro
+    data_source_id = get_data_source_id(NOTION_DB)
+    if not data_source_id:
+        print("❌ Não foi possível descobrir data_source_id")
+        return None
+
     if by == "phone":
         # CORREÇÃO: Busca pelo número completo com '55', sem remover.
         search_value = clean_phone_number(identifier)
@@ -36,8 +74,9 @@ def notion_find_page(identifier: str | None, by: str = "phone") -> Optional[str]
     print(f"Buscando no Notion com filtro: {json.dumps(filter_json, indent=2)}")
 
     try:
+        # Usa o novo endpoint de data sources
         resp = httpx.post(
-            f"https://api.notion.com/v1/databases/{NOTION_DB}/query",
+            f"https://api.notion.com/v1/data_sources/{data_source_id}/query",
             headers=HEADERS_NOTION,
             json={"filter": filter_json},
             timeout=15,
@@ -123,6 +162,12 @@ def notion_create_page(
     """Cria uma nova página no Notion para um novo lead com todos os detalhes."""
     print(f"Criando nova página no Notion para: {name}")
 
+    # Descobre o data_source_id primeiro
+    data_source_id = get_data_source_id(NOTION_DB)
+    if not data_source_id:
+        print("❌ Não foi possível descobrir data_source_id para criar página")
+        return None
+
     properties = {
         NOTION_NAME_PROP: {"title": [{"text": {"content": name}}]},
         NOTION_STATUS_PROP: {"status": {"name": status}},
@@ -133,8 +178,9 @@ def notion_create_page(
     if phone:
         properties[NOTION_PHONE_PROP] = {"phone_number": clean_phone_number(phone)}
 
+    # Usa data_source_id em vez de database_id
     payload = {
-        "parent": {"database_id": NOTION_DB},
+        "parent": {"type": "data_source_id", "data_source_id": data_source_id},
         "properties": properties
     }
 

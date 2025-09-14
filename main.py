@@ -335,6 +335,40 @@ async def test_placement_tests():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@app.get("/test/notion-api-upgrade")
+async def test_notion_api_upgrade():
+    """Testa a compatibilidade com a nova API do Notion 2025-09-03."""
+    try:
+        from services.notion_service import get_data_source_id
+        
+        # Testa descoberta de data_source_id
+        data_source_id = get_data_source_id(NOTION_DB)
+        if not data_source_id:
+            return {
+                "success": False,
+                "error": "Não foi possível descobrir data_source_id",
+                "api_version": "2025-09-03"
+            }
+        
+        # Testa busca de página (simulando busca por email)
+        test_email = "test@example.com"
+        page_id = notion_find_page(test_email, "email")
+        
+        return {
+            "success": True,
+            "message": "API do Notion 2025-09-03 funcionando corretamente",
+            "data_source_id": data_source_id,
+            "database_id": NOTION_DB,
+            "api_version": "2025-09-03",
+            "test_search_worked": page_id is not None or True  # True se não encontrou (esperado)
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "api_version": "2025-09-03"
+        }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

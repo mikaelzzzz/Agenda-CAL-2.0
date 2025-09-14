@@ -23,12 +23,19 @@ class PlacementTestService:
     async def get_all_emails_from_notion(self) -> List[str]:
         """Busca todos os emails do database do Notion."""
         try:
-            # Busca todas as páginas do database
-            url = f"https://api.notion.com/v1/databases/{self.notion_db}/query"
+            # Primeiro descobre o data_source_id
+            from services.notion_service import get_data_source_id
+            data_source_id = get_data_source_id(self.notion_db)
+            if not data_source_id:
+                print("❌ Não foi possível descobrir data_source_id")
+                return []
+            
+            # Busca todas as páginas do data source
+            url = f"https://api.notion.com/v1/data_sources/{data_source_id}/query"
             headers = {
                 "Authorization": f"Bearer {NOTION_TOKEN}",
                 "Content-Type": "application/json",
-                "Notion-Version": "2022-06-28"
+                "Notion-Version": "2025-09-03"
             }
             
             all_emails = []
