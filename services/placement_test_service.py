@@ -192,37 +192,34 @@ class PlacementTestService:
                     [{"text": {"content": "Pendente"}}]
                 )
             
-            # Atualiza o status do teste usando IDs fixos (se fornecidos) ou garantindo opções
-            fixed_ids = {
-                "Sim": NOTION_TEST_OPTION_ID_SIM,
-                "Não": NOTION_TEST_OPTION_ID_NAO,
-            }
-            chosen_id = fixed_ids.get(test_status)
-            if chosen_id:
-                await notion_update_page_property(
-                    page_id,
-                    NOTION_TEST_PROP,
-                    "multi_select",
-                    [{"id": chosen_id}]
-                )
-            else:
-                options = ensure_multi_select_options(NOTION_TEST_PROP, ["Sim", "Não"])
-                option_id = options.get(test_status)
-                if option_id:
-                    await notion_update_page_property(
-                        page_id,
-                        NOTION_TEST_PROP,
-                        "multi_select",
-                        [{"id": option_id}]
-                    )
-                else:
-                    # Fallback para nome
-                    await notion_update_page_property(
-                        page_id,
-                        NOTION_TEST_PROP,
-                        "multi_select",
-                        [{"name": test_status}]
-                    )
+            # Garante que as opções existam e atualiza por "name" (mais resiliente)
+            ensure_multi_select_options(NOTION_TEST_PROP, ["Sim", "Não"])
+            await notion_update_page_property(
+                page_id,
+                NOTION_TEST_PROP,
+                "multi_select",
+                [{"name": test_status}]
+            )
+
+            # Confirma a atualização lendo a página
+            try:
+                headers = {
+                    "Authorization": f"Bearer {NOTION_TOKEN}",
+                    "Content-Type": "application/json",
+                    "Notion-Version": "2025-09-03",
+                }
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(f"https://api.notion.com/v1/pages/{page_id}", headers=headers)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    ms = data.get("properties", {}).get(NOTION_TEST_PROP, {}).get("multi_select", [])
+                    names = [opt.get("name") for opt in ms if isinstance(opt, dict)]
+                    if test_status in names:
+                        print(f"✓ Confirmação: '{NOTION_TEST_PROP}' atualizado para {test_status}.")
+                    else:
+                        print(f"⚠️ Aviso: '{NOTION_TEST_PROP}' não refletiu '{test_status}' após PATCH. Atual: {names}")
+            except Exception as confirm_err:
+                print(f"⚠️ Erro ao confirmar atualização de '{NOTION_TEST_PROP}': {confirm_err}")
             
             print(f"✓ Status do teste atualizado para: {test_status}")
             return True
