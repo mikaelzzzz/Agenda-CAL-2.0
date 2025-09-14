@@ -21,6 +21,26 @@ class PlacementTestService:
         
         if not self.enabled:
             print("⚠️ PlacementTestService desabilitado: FLEXGE_API_KEY não configurada")
+
+    @staticmethod
+    def _sanitize_email(raw: str | None) -> str | None:
+        """Remove possíveis formatações markdown (ex.: [email](mailto:email)) e espaços."""
+        if not raw:
+            return raw
+        s = raw.strip()
+        # Padrão [text](mailto:text)
+        if s.startswith("[") and "](mailto:" in s and s.endswith(")"):
+            try:
+                left = s.find("[")
+                right = s.find("](")
+                inner = s[left + 1:right]
+                return inner.strip()
+            except Exception:
+                return s
+        # Padrão (mailto:email)
+        if s.startswith("mailto:"):
+            return s.replace("mailto:", "").strip()
+        return s
         
     async def get_all_emails_from_notion(self) -> List[str]:
         """Busca todos os emails do database do Notion."""
@@ -230,16 +250,17 @@ class PlacementTestService:
         # Para cada email, verifica o status do teste
         for email in emails:
             try:
-                print(f"🔍 Verificando: {email}")
+                clean_email = self._sanitize_email(email)
+                print(f"🔍 Verificando: {clean_email}")
                 
                 # Busca a página no Notion pelo email
-                page_id = notion_find_page(email, "email")
+                page_id = notion_find_page(clean_email, "email")
                 if not page_id:
-                    print(f"⚠️ Página não encontrada para {email}")
+                    print(f"⚠️ Página não encontrada para {clean_email}")
                     continue
                 
                 # Verifica o status do teste
-                test_data = await self.check_placement_test_status(email)
+                test_data = await self.check_placement_test_status(clean_email)
                 
                 # Atualiza o Notion
                 await self.update_notion_test_status(page_id, test_data)
