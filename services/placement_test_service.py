@@ -6,7 +6,7 @@ from config import (
     NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP,
     NOTION_TEST_OPTION_ID_SIM, NOTION_TEST_OPTION_ID_NAO, NOTION_TEST_PROP,
 )
-from services.notion_service import notion_find_page, notion_update_page_property, ensure_multi_select_options
+from services.notion_service import notion_find_page, notion_update_page_property
 
 # Nomes das propriedades no Notion
 NOTION_EMAIL_PROP = "Email"
@@ -192,13 +192,12 @@ class PlacementTestService:
                     [{"text": {"content": "Pendente"}}]
                 )
             
-            # Garante que as opções existam e atualiza por "name" (mais resiliente)
-            ensure_multi_select_options(NOTION_TEST_PROP, ["Sim", "Não"])
+            # Atualiza a propriedade como checkbox (True para Sim, False para Não)
             await notion_update_page_property(
                 page_id,
                 NOTION_TEST_PROP,
-                "multi_select",
-                [{"name": test_status}]
+                "checkbox",
+                (test_status == "Sim")
             )
 
             # Confirma a atualização lendo a página
@@ -212,12 +211,12 @@ class PlacementTestService:
                     resp = await client.get(f"https://api.notion.com/v1/pages/{page_id}", headers=headers)
                     resp.raise_for_status()
                     data = resp.json()
-                    ms = data.get("properties", {}).get(NOTION_TEST_PROP, {}).get("multi_select", [])
-                    names = [opt.get("name") for opt in ms if isinstance(opt, dict)]
-                    if test_status in names:
-                        print(f"✓ Confirmação: '{NOTION_TEST_PROP}' atualizado para {test_status}.")
+                    cb = data.get("properties", {}).get(NOTION_TEST_PROP, {}).get("checkbox")
+                    expected = (test_status == "Sim")
+                    if cb is expected:
+                        print(f"✓ Confirmação: '{NOTION_TEST_PROP}' (checkbox) atualizado para {expected}.")
                     else:
-                        print(f"⚠️ Aviso: '{NOTION_TEST_PROP}' não refletiu '{test_status}' após PATCH. Atual: {names}")
+                        print(f"⚠️ Aviso: '{NOTION_TEST_PROP}' não refletiu '{expected}' após PATCH. Atual: {cb}")
             except Exception as confirm_err:
                 print(f"⚠️ Erro ao confirmar atualização de '{NOTION_TEST_PROP}': {confirm_err}")
             
