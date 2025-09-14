@@ -30,6 +30,10 @@ NOTION_STATUS_PROP = os.getenv("NOTION_STATUS_PROP", "Status")
 NOTION_DATE_PROP = os.getenv("NOTION_DATE_PROP", "Data Agendada pelo Lead")
 NOTION_LINK_PROP = os.getenv("NOTION_LINK_PROP", "Link Flexge")
 
+# IDs das opções do multi-select (opcionais): "Sim" e "Não"
+NOTION_TEST_OPTION_ID_SIM = os.getenv("NOTION_TEST_OPTION_ID_SIM")
+NOTION_TEST_OPTION_ID_NAO = os.getenv("NOTION_TEST_OPTION_ID_NAO")
+
 # --- Notion Status Value ---
 # O nome da opção de status que deve ser definida quando uma reunião é agendada.
 NOTION_STATUS_VALUE = os.getenv("NOTION_STATUS_VALUE", "Agendado reunião")
