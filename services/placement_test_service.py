@@ -3,7 +3,7 @@ import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
 from config import NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP
-from services.notion_service import notion_find_page, notion_update_page_property
+from services.notion_service import notion_find_page, notion_update_page_property, ensure_multi_select_options
 
 # Nomes das propriedades no Notion
 NOTION_EMAIL_PROP = "Email"
@@ -163,13 +163,24 @@ class PlacementTestService:
                     ""
                 )
             
-            # Atualiza o status do teste
-            await notion_update_page_property(
-                page_id, 
-                NOTION_TEST_PROP, 
-                "multi_select", 
-                [{"name": test_status}]
-            )
+            # Atualiza o status do teste usando IDs das opções do multi_select
+            options = ensure_multi_select_options(NOTION_TEST_PROP, ["Sim", "Não"])
+            option_id = options.get(test_status)
+            if option_id:
+                await notion_update_page_property(
+                    page_id,
+                    NOTION_TEST_PROP,
+                    "multi_select",
+                    [{"id": option_id}]
+                )
+            else:
+                # Fallback para nome caso não obtenha ID
+                await notion_update_page_property(
+                    page_id,
+                    NOTION_TEST_PROP,
+                    "multi_select",
+                    [{"name": test_status}]
+                )
             
             print(f"✓ Status do teste atualizado para: {test_status}")
             return True

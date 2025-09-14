@@ -237,3 +237,71 @@ async def notion_update_page_property(page_id: str, property_name: str, property
     except Exception as e:
         print(f"❌ Erro ao atualizar propriedade {property_name} no Notion: {e}")
         return False 
+
+def get_database_properties() -> Dict[str, Any] | None:
+    """Obtém o schema (properties) do database no Notion."""
+    try:
+        resp = httpx.get(
+            f"https://api.notion.com/v1/databases/{NOTION_DB}",
+            headers=HEADERS_NOTION,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("properties", {})
+    except Exception as e:
+        print(f"❌ Erro ao obter schema do database: {e}")
+        return None
+
+def ensure_multi_select_options(property_name: str, desired_names: list[str]) -> Dict[str, str]:
+    """Garante que as opções informadas existam na propriedade multi_select.
+    Retorna um mapa nome->id das opções solicitadas (criando-as se necessário).
+    """
+    properties = get_database_properties()
+    if properties is None:
+        return {}
+
+    prop = properties.get(property_name)
+    if not prop:
+        print(f"❌ Propriedade '{property_name}' não encontrada no database")
+        return {}
+
+    if prop.get("type") != "multi_select":
+        print(f"❌ Propriedade '{property_name}' não é do tipo multi_select (é {prop.get('type')})")
+        return {}
+
+    options = prop.get("multi_select", {}).get("options", [])
+    name_to_id: Dict[str, str] = {opt.get("name"): opt.get("id") for opt in options if opt.get("name") and opt.get("id")}
+
+    missing = [n for n in desired_names if n not in name_to_id]
+    if missing:
+        # Adiciona opções ausentes e atualiza o schema do database
+        updated_options = options + [{"name": n} for n in missing]
+        payload = {
+            "properties": {
+                property_name: {
+                    "multi_select": {
+                        "options": updated_options
+                    }
+                }
+            }
+        }
+        try:
+            resp = httpx.patch(
+                f"https://api.notion.com/v1/databases/{NOTION_DB}",
+                headers=HEADERS_NOTION,
+                json=payload,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            # Recarrega schema para obter os IDs atualizados
+            properties = get_database_properties() or {}
+            prop = properties.get(property_name, {})
+            options = prop.get("multi_select", {}).get("options", [])
+            name_to_id = {opt.get("name"): opt.get("id") for opt in options if opt.get("name") and opt.get("id")}
+            print(f"✓ Opções adicionadas à propriedade '{property_name}': {', '.join(missing)}")
+        except Exception as e:
+            print(f"❌ Erro ao atualizar opções da propriedade '{property_name}': {e}")
+
+    # Retorna apenas os nomes solicitados que existem no schema
+    return {name: name_to_id.get(name) for name in desired_names if name in name_to_id}
