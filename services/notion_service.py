@@ -204,10 +204,24 @@ def notion_create_page(
 async def notion_update_page_property(page_id: str, property_name: str, property_type: str, value: any) -> bool:
     """Atualiza uma propriedade específica de uma página no Notion."""
     try:
+        # Constrói o payload baseado no tipo da propriedade
+        if property_type == "url":
+            # Para propriedades URL, o valor é passado diretamente
+            property_value = value if value else None
+        elif property_type == "select":
+            # Para propriedades Select, precisa do objeto com name
+            property_value = value
+        elif property_type == "rich_text":
+            # Para propriedades Rich Text, precisa do array com text
+            property_value = value
+        else:
+            # Para outros tipos, usa o valor diretamente
+            property_value = value
+        
         payload = {
             "properties": {
                 property_name: {
-                    property_type: value
+                    property_type: property_value
                 }
             }
         }
