@@ -2,7 +2,7 @@
 import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
-from config import NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL
+from config import NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP
 from services.notion_service import notion_find_page, notion_update_page_property
 
 # Nomes das propriedades no Notion
@@ -73,25 +73,45 @@ class PlacementTestService:
             return []
     
     async def check_placement_test_status(self, email: str) -> Optional[Dict[str, Any]]:
-        """Verifica o status do teste de nivelamento para um email específico."""
+        """Verifica o status do teste de nivelamento para um email específico, buscando em todas as páginas."""
         try:
-            url = f"{self.base_url}/placement-tests?page=1"
             headers = {
                 "accept": "application/json",
                 "x-api-key": self.api_key
             }
             
+            page = 1
+            has_more = True
+            
             async with httpx.AsyncClient() as client:
-                response = await client.get(url, headers=headers)
-                response.raise_for_status()
-                data = response.json()
+                while has_more:
+                    url = f"{self.base_url}/placement-tests?page={page}"
+                    print(f"🔍 Buscando na página {page} para {email}")
+                    
+                    response = await client.get(url, headers=headers)
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Procura pelo email nos resultados da página atual
+                    for test in data.get("data", []):
+                        student = test.get("student", {})
+                        if student.get("email") == email:
+                            print(f"✅ Teste encontrado para {email} na página {page}")
+                            return test
+                    
+                    # Verifica se há mais páginas
+                    has_more = data.get("has_more", False)
+                    page += 1
+                    
+                    # Limite de segurança para evitar loop infinito
+                    if page > 100:  # Máximo 100 páginas
+                        print(f"⚠️ Limite de páginas atingido para {email}")
+                        break
+                    
+                    # Pequena pausa entre requisições para não sobrecarregar a API
+                    await asyncio.sleep(0.1)
             
-            # Procura pelo email nos resultados
-            for test in data.get("data", []):
-                student = test.get("student", {})
-                if student.get("email") == email:
-                    return test
-            
+            print(f"ℹ️ Nenhum teste encontrado para {email} em {page-1} páginas")
             return None
             
         except Exception as e:
@@ -104,6 +124,19 @@ class PlacementTestService:
             if test_data:
                 # Aluno fez o teste
                 test_status = "Sim"
+                
+                # Constrói o link do teste usando o ID
+                test_id = test_data.get("id")
+                if test_id:
+                    test_url = f"https://app.flexge.com/placement-tests/{test_id}"
+                    # Atualiza o link do teste
+                    await notion_update_page_property(
+                        page_id, 
+                        NOTION_LINK_PROP, 
+                        "url", 
+                        test_url
+                    )
+                    print(f"✓ Link do teste atualizado: {test_url}")
                 
                 # Verifica se tem nível alcançado
                 reached_level = test_data.get("reachedLevel", {})
@@ -122,6 +155,13 @@ class PlacementTestService:
             else:
                 # Aluno não fez o teste
                 test_status = "Não"
+                # Limpa o link se não fez o teste
+                await notion_update_page_property(
+                    page_id, 
+                    NOTION_LINK_PROP, 
+                    "url", 
+                    ""
+                )
             
             # Atualiza o status do teste
             await notion_update_page_property(

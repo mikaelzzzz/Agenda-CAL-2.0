@@ -28,6 +28,7 @@ NOTION_EMAIL_PROP = os.getenv("NOTION_EMAIL_PROP", "Email")
 NOTION_PHONE_PROP = os.getenv("NOTION_PHONE_PROP", "Telefone")
 NOTION_STATUS_PROP = os.getenv("NOTION_STATUS_PROP", "Status")
 NOTION_DATE_PROP = os.getenv("NOTION_DATE_PROP", "Data Agendada pelo Lead")
+NOTION_LINK_PROP = os.getenv("NOTION_LINK_PROP", "Link Flexge")
 
 # --- Notion Status Value ---
 # O nome da opção de status que deve ser definida quando uma reunião é agendada.
