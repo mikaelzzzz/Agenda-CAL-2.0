@@ -1,0 +1,175 @@
+# services/placement_test_service.py
+import httpx
+import asyncio
+from typing import List, Dict, Any, Optional
+from config import NOTION_TOKEN, NOTION_DB
+from services.notion_service import notion_find_page, notion_update_page_property
+
+# Configurações da API Flexge
+FLEXGE_API_KEY = "0cab67cc901d54983456547e1040ef88b38dfc29c59e8971a18fab5512bb41ad61c60481"
+FLEXGE_BASE_URL = "https://partner-api.flexge.com/external/placement-tests"
+
+# Nomes das propriedades no Notion
+NOTION_EMAIL_PROP = "Email"
+NOTION_TEST_PROP = "Já fez o teste de nivelamento?"
+NOTION_LEVEL_PROP = "Nível Flexge"
+
+class PlacementTestService:
+    def __init__(self):
+        self.api_key = FLEXGE_API_KEY
+        self.base_url = FLEXGE_BASE_URL
+        self.notion_db = NOTION_DB
+        
+    async def get_all_emails_from_notion(self) -> List[str]:
+        """Busca todos os emails do database do Notion."""
+        try:
+            # Busca todas as páginas do database
+            url = f"https://api.notion.com/v1/databases/{self.notion_db}/query"
+            headers = {
+                "Authorization": f"Bearer {NOTION_TOKEN}",
+                "Content-Type": "application/json",
+                "Notion-Version": "2022-06-28"
+            }
+            
+            all_emails = []
+            has_more = True
+            start_cursor = None
+            
+            while has_more:
+                payload = {
+                    "page_size": 100
+                }
+                if start_cursor:
+                    payload["start_cursor"] = start_cursor
+                
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(url, headers=headers, json=payload)
+                    response.raise_for_status()
+                    data = response.json()
+                
+                # Extrai emails das páginas
+                for page in data.get("results", []):
+                    properties = page.get("properties", {})
+                    email_prop = properties.get(NOTION_EMAIL_PROP, {})
+                    
+                    if email_prop.get("type") == "email" and email_prop.get("email"):
+                        all_emails.append(email_prop["email"])
+                
+                has_more = data.get("has_more", False)
+                start_cursor = data.get("next_cursor")
+            
+            print(f"✓ Encontrados {len(all_emails)} emails no Notion")
+            return all_emails
+            
+        except Exception as e:
+            print(f"❌ Erro ao buscar emails do Notion: {e}")
+            return []
+    
+    async def check_placement_test_status(self, email: str) -> Optional[Dict[str, Any]]:
+        """Verifica o status do teste de nivelamento para um email específico."""
+        try:
+            url = f"{self.base_url}?page=1"
+            headers = {
+                "accept": "application/json",
+                "x-api-key": self.api_key
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+            
+            # Procura pelo email nos resultados
+            for test in data.get("data", []):
+                student = test.get("student", {})
+                if student.get("email") == email:
+                    return test
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ Erro ao verificar teste para {email}: {e}")
+            return None
+    
+    async def update_notion_test_status(self, page_id: str, test_data: Optional[Dict[str, Any]]) -> bool:
+        """Atualiza o status do teste no Notion."""
+        try:
+            if test_data:
+                # Aluno fez o teste
+                test_status = "Sim"
+                
+                # Verifica se tem nível alcançado
+                reached_level = test_data.get("reachedLevel", {})
+                if reached_level and not reached_level.get("deleted", True):
+                    course = reached_level.get("course", {})
+                    level_name = course.get("name", "")
+                    if level_name:
+                        # Atualiza o nível
+                        await notion_update_page_property(
+                            page_id, 
+                            NOTION_LEVEL_PROP, 
+                            "rich_text", 
+                            [{"text": {"content": level_name}}]
+                        )
+                        print(f"✓ Nível atualizado para {level_name}")
+            else:
+                # Aluno não fez o teste
+                test_status = "Não"
+            
+            # Atualiza o status do teste
+            await notion_update_page_property(
+                page_id, 
+                NOTION_TEST_PROP, 
+                "select", 
+                {"name": test_status}
+            )
+            
+            print(f"✓ Status do teste atualizado para: {test_status}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Erro ao atualizar Notion para {page_id}: {e}")
+            return False
+    
+    async def process_all_students(self) -> None:
+        """Processa todos os alunos verificando seus testes de nivelamento."""
+        print("🔄 Iniciando verificação de testes de nivelamento...")
+        
+        # Busca todos os emails do Notion
+        emails = await self.get_all_emails_from_notion()
+        if not emails:
+            print("⚠️ Nenhum email encontrado no Notion")
+            return
+        
+        print(f"📧 Verificando {len(emails)} emails...")
+        
+        # Para cada email, verifica o status do teste
+        for email in emails:
+            try:
+                print(f"🔍 Verificando: {email}")
+                
+                # Busca a página no Notion pelo email
+                page = await notion_find_page(email, "email")
+                if not page:
+                    print(f"⚠️ Página não encontrada para {email}")
+                    continue
+                
+                page_id = page["id"]
+                
+                # Verifica o status do teste
+                test_data = await self.check_placement_test_status(email)
+                
+                # Atualiza o Notion
+                await self.update_notion_test_status(page_id, test_data)
+                
+                # Pequena pausa para não sobrecarregar a API
+                await asyncio.sleep(0.5)
+                
+            except Exception as e:
+                print(f"❌ Erro ao processar {email}: {e}")
+                continue
+        
+        print("✅ Verificação de testes concluída!")
+
+# Instância global do serviço
+placement_test_service = PlacementTestService()

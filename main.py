@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from config import CAL_SECRET, TZ, ADMIN_PHONES, HEADERS_NOTION, NOTION_STATUS_VALUE, DATABASE_URL
 from models import (
@@ -32,6 +33,9 @@ from utils import format_pt_br
 # NOVA IMPORTAÇÃO: Serviço de contexto da Zaia
 from services.zaia_context_service import ZaiaContextService
 
+# NOVA IMPORTAÇÃO: Serviço de verificação de testes de nivelamento
+from services.placement_test_service import placement_test_service
+
 # -----------------------------------------------------------------------------
 # Scheduler Setup with Persistent Job Store
 # -----------------------------------------------------------------------------
@@ -51,6 +55,17 @@ async def lifespan(app: FastAPI):
     # Iniciar o scheduler quando a aplicação iniciar
     scheduler.start()
     print("Scheduler started...")
+    
+    # ✅ NOVO: Adicionar job periódico para verificar testes de nivelamento
+    scheduler.add_job(
+        placement_test_service.process_all_students,
+        trigger=IntervalTrigger(hours=1),  # Executa a cada 1 hora
+        id="placement_test_checker",
+        replace_existing=True,
+        max_instances=1  # Evita execuções simultâneas
+    )
+    print("✅ Job de verificação de testes de nivelamento agendado (a cada 1 hora)")
+    
     yield
     # Parar o scheduler quando a aplicação desligar
     scheduler.shutdown()
@@ -303,6 +318,19 @@ async def test_schedule_messages():
             "success": True,
             "scheduled_for": test_dt.isoformat(),
             "message": "Mensagens de teste agendadas para admins"
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/test/placement-tests")
+async def test_placement_tests():
+    """Testa a verificação de testes de nivelamento."""
+    try:
+        await placement_test_service.process_all_students()
+        return {
+            "success": True,
+            "message": "Verificação de testes de nivelamento executada com sucesso",
+            "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
         return {"success": False, "error": str(e)}

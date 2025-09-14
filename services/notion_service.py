@@ -153,4 +153,27 @@ def notion_create_page(
         print(f"✗ Erro ao criar página no Notion: {str(e)}")
         # Adiciona log do payload para depuração
         print(f"Payload enviado: {json.dumps(payload, indent=2)}")
-        return None 
+        return None
+
+async def notion_update_page_property(page_id: str, property_name: str, property_type: str, value: any) -> bool:
+    """Atualiza uma propriedade específica de uma página no Notion."""
+    try:
+        payload = {
+            "properties": {
+                property_name: {
+                    property_type: value
+                }
+            }
+        }
+        
+        resp = httpx.patch(
+            f"https://api.notion.com/v1/pages/{page_id}",
+            headers=HEADERS_NOTION,
+            json=payload,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"❌ Erro ao atualizar propriedade {property_name} no Notion: {e}")
+        return False 
