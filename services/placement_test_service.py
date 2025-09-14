@@ -1,4 +1,4 @@
-\# services/placement_test_service.py
+# services/placement_test_service.py
 import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
