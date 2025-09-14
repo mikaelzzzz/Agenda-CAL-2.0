@@ -3,8 +3,8 @@ import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
 from config import (
-    NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP,
-    NOTION_TEST_OPTION_ID_SIM, NOTION_TEST_OPTION_ID_NAO, NOTION_TEST_PROP,
+NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP,
+NOTION_TEST_OPTION_ID_SIM, NOTION_TEST_OPTION_ID_NAO, NOTION_TEST_PROP,
 )
 from services.notion_service import notion_find_page, notion_update_page_property
 
@@ -142,6 +142,8 @@ class PlacementTestService:
     
     async def update_notion_test_status(self, page_id: str, test_data: Optional[Dict[str, Any]]) -> bool:
         """Atualiza o status do teste no Notion."""
+        # Observação: a propriedade "Teste de Nivelamento" é do tipo checkbox
+        # True = fez o teste | False = não fez (mantemos "Nível Flexge" como "Pendente")
         try:
             if test_data:
                 # Aluno fez o teste
