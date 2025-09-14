@@ -39,13 +39,20 @@ ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 ZAPI_CLIENT_TOKEN = os.getenv("ZAPI_CLIENT_TOKEN")
 ADMIN_PHONES = [p.strip() for p in os.getenv("ADMIN_PHONES", "").split(",") if p]
 
+# --- Flexge API Config ---
+# Configurações para verificação de testes de nivelamento
+FLEXGE_API_KEY = os.getenv("FLEXGE_API_KEY")
+FLEXGE_BASE_URL = os.getenv("FLEXGE_BASE_URL", "https://partner-api.flexge.com/external/placement-tests")
+
 # --- Zaia API Config (NOVO) ---
 # Configurações para enviar mensagens para a Zaia e preservar contexto
 ZAIA_API_KEY = os.getenv("ZAIA_API_KEY")
 ZAIA_AGENT_ID = os.getenv("ZAIA_AGENT_ID")
 ZAIA_BASE_URL = os.getenv("ZAIA_BASE_URL", "https://api.zaia.app")
 
-# Validação das configurações da Zaia
+# Validação das configurações
+if not FLEXGE_API_KEY:
+    print("⚠️  AVISO: FLEXGE_API_KEY não configurada. Verificação de testes de nivelamento será desabilitada.")
 if not ZAIA_API_KEY:
     print("⚠️  AVISO: ZAIA_API_KEY não configurada. Contexto da Zaia será desabilitado.")
 if not ZAIA_AGENT_ID:

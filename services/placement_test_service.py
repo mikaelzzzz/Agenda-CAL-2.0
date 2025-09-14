@@ -2,12 +2,8 @@
 import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
-from config import NOTION_TOKEN, NOTION_DB
+from config import NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL
 from services.notion_service import notion_find_page, notion_update_page_property
-
-# Configurações da API Flexge
-FLEXGE_API_KEY = "0cab67cc901d54983456547e1040ef88b38dfc29c59e8971a18fab5512bb41ad61c60481"
-FLEXGE_BASE_URL = "https://partner-api.flexge.com/external/placement-tests"
 
 # Nomes das propriedades no Notion
 NOTION_EMAIL_PROP = "Email"
@@ -19,6 +15,10 @@ class PlacementTestService:
         self.api_key = FLEXGE_API_KEY
         self.base_url = FLEXGE_BASE_URL
         self.notion_db = NOTION_DB
+        self.enabled = bool(FLEXGE_API_KEY)
+        
+        if not self.enabled:
+            print("⚠️ PlacementTestService desabilitado: FLEXGE_API_KEY não configurada")
         
     async def get_all_emails_from_notion(self) -> List[str]:
         """Busca todos os emails do database do Notion."""
@@ -140,6 +140,10 @@ class PlacementTestService:
     
     async def process_all_students(self) -> None:
         """Processa todos os alunos verificando seus testes de nivelamento."""
+        if not self.enabled:
+            print("⚠️ PlacementTestService desabilitado. Verificação de testes não executada.")
+            return
+            
         print("🔄 Iniciando verificação de testes de nivelamento...")
         
         # Busca todos os emails do Notion

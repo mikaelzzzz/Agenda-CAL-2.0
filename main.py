@@ -57,14 +57,17 @@ async def lifespan(app: FastAPI):
     print("Scheduler started...")
     
     # ✅ NOVO: Adicionar job periódico para verificar testes de nivelamento
-    scheduler.add_job(
-        placement_test_service.process_all_students,
-        trigger=IntervalTrigger(hours=1),  # Executa a cada 1 hora
-        id="placement_test_checker",
-        replace_existing=True,
-        max_instances=1  # Evita execuções simultâneas
-    )
-    print("✅ Job de verificação de testes de nivelamento agendado (a cada 1 hora)")
+    if placement_test_service.enabled:
+        scheduler.add_job(
+            placement_test_service.process_all_students,
+            trigger=IntervalTrigger(hours=1),  # Executa a cada 1 hora
+            id="placement_test_checker",
+            replace_existing=True,
+            max_instances=1  # Evita execuções simultâneas
+        )
+        print("✅ Job de verificação de testes de nivelamento agendado (a cada 1 hora)")
+    else:
+        print("⚠️ Job de verificação de testes de nivelamento não agendado (FLEXGE_API_KEY não configurada)")
     
     yield
     # Parar o scheduler quando a aplicação desligar
@@ -326,14 +329,22 @@ async def test_schedule_messages():
 async def test_placement_tests():
     """Testa a verificação de testes de nivelamento."""
     try:
+        if not placement_test_service.enabled:
+            return {
+                "success": False,
+                "error": "PlacementTestService desabilitado: FLEXGE_API_KEY não configurada",
+                "enabled": False
+            }
+        
         await placement_test_service.process_all_students()
         return {
             "success": True,
             "message": "Verificação de testes de nivelamento executada com sucesso",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "enabled": True
         }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "enabled": placement_test_service.enabled}
 
 @app.get("/test/notion-api-upgrade")
 async def test_notion_api_upgrade():
