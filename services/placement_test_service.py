@@ -200,12 +200,10 @@ class PlacementTestService:
                 print(f"🔍 Verificando: {email}")
                 
                 # Busca a página no Notion pelo email
-                page = await notion_find_page(email, "email")
-                if not page:
+                page_id = notion_find_page(email, "email")
+                if not page_id:
                     print(f"⚠️ Página não encontrada para {email}")
                     continue
-                
-                page_id = page["id"]
                 
                 # Verifica o status do teste
                 test_data = await self.check_placement_test_status(email)
