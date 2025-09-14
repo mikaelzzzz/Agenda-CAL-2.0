@@ -167,8 +167,8 @@ class PlacementTestService:
             await notion_update_page_property(
                 page_id, 
                 NOTION_TEST_PROP, 
-                "select", 
-                {"name": test_status}
+                "multi_select", 
+                [{"name": test_status}]
             )
             
             print(f"✓ Status do teste atualizado para: {test_status}")
