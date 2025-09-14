@@ -1,16 +1,15 @@
-# services/placement_test_service.py
+\# services/placement_test_service.py
 import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
 from config import (
     NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP,
-    NOTION_TEST_OPTION_ID_SIM, NOTION_TEST_OPTION_ID_NAO,
+    NOTION_TEST_OPTION_ID_SIM, NOTION_TEST_OPTION_ID_NAO, NOTION_TEST_PROP,
 )
 from services.notion_service import notion_find_page, notion_update_page_property, ensure_multi_select_options
 
 # Nomes das propriedades no Notion
 NOTION_EMAIL_PROP = "Email"
-NOTION_TEST_PROP = "Já fez o teste de nivelamento?"
 NOTION_LEVEL_PROP = "Nível Flexge"
 
 class PlacementTestService:
@@ -164,6 +163,13 @@ class PlacementTestService:
                     NOTION_LINK_PROP, 
                     "url", 
                     ""
+                )
+                # Marca nível como Pendente
+                await notion_update_page_property(
+                    page_id,
+                    NOTION_LEVEL_PROP,
+                    "rich_text",
+                    [{"text": {"content": "Pendente"}}]
                 )
             
             # Atualiza o status do teste usando IDs fixos (se fornecidos) ou garantindo opções
