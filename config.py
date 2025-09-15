@@ -49,7 +49,7 @@ ADMIN_PHONES = [p.strip() for p in os.getenv("ADMIN_PHONES", "").split(",") if p
 # --- Flexge API Config ---
 # Configurações para verificação de testes de nivelamento
 FLEXGE_API_KEY = os.getenv("FLEXGE_API_KEY")
-FLEXGE_BASE_URL = os.getenv("FLEXGE_BASE_URL", "https://partner-api.flexge.com/external")
+FLEXGE_BASE_URL = os.getenv("FLEXGE_BASE_URL", "https://partner-api.flexge.com/external/placement-tests")
 
 # --- Zaia API Config (NOVO) ---
 # Configurações para enviar mensagens para a Zaia e preservar contexto

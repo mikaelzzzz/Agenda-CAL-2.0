@@ -122,23 +122,32 @@ class PlacementTestService:
             page = 1
             has_more = True
             next_cursor = None
+            pages_visited = 0
             
             async with httpx.AsyncClient() as client:
                 while True:
                     params = f"page={page}&sort=createdAt&order=desc"
                     if next_cursor:
                         params += f"&cursor={next_cursor}"
-                    url = f"{self.base_url}/placement-tests?{params}"
+                    url = f"{self.base_url}?{params}"
                     print(f"🔍 Buscando na página {page} (ordem desc) para {email}")
                     
                     response = await client.get(url, headers=headers)
                     response.raise_for_status()
                     data = response.json()
                     
-                    tests = data.get("data") or []
+                    # Suporta formatos { data: [...] } e { docs: [...], total: N }
+                    tests = data.get("data")
+                    if tests is None:
+                        tests = data.get("docs")
+                    if tests is None:
+                        tests = []
+                    
                     if not tests:
                         # Página vazia: encerramos a paginação
                         break
+                    pages_visited += 1
+                    
                     try:
                         tests = sorted(
                             tests,
@@ -152,7 +161,9 @@ class PlacementTestService:
                     def is_completed_valid(t: Dict[str, Any]) -> bool:
                         if t.get("deleted") is True:
                             return False
-                        if (t.get("type") or "").upper() != "PLACEMENT":
+                        # Alguns payloads não possuem `type`; se houver, validar PLACEMENT
+                        t_type = (t.get("type") or "").upper()
+                        if t_type and t_type != "PLACEMENT":
                             return False
                         student = t.get("student", {})
                         if student.get("deleted") is True:
@@ -185,15 +196,15 @@ class PlacementTestService:
                     page += 1
                     
                     if not has_more and not next_cursor:
-                        # Se não há pistas de continuidade, paramos
-                        break
+                        # Se não há pistas de continuidade, paramos quando a próxima vier vazia
+                        pass
                     
                     if page > 200:
                         print(f"⚠️ Limite de páginas atingido para {email}")
                         break
                     await asyncio.sleep(0.1)
             
-            print(f"ℹ️ Nenhum teste CONCLUÍDO encontrado para {email} em {page-1} páginas")
+            print(f"ℹ️ Nenhum teste CONCLUÍDO encontrado para {email} após verificar {pages_visited} página(s)")
             return None
             
         except Exception as e:
