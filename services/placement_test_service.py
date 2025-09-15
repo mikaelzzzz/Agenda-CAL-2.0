@@ -5,9 +5,9 @@ from typing import List, Dict, Any, Optional
 from config import (
     NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP,
     NOTION_TEST_PROP,
-    NOTION_STATUS_PROP, NOTION_IA_ATTENDANCE_PROP, NOTION_EMAIL_PROP
+    NOTION_STATUS_PROP, NOTION_IA_ATTENDANCE_PROP, NOTION_EMAIL_PROP, HEADERS_NOTION
 )
-from services.notion_service import notion_find_page, notion_update_page_property
+from services.notion_service import notion_find_page, notion_update_page_property, get_data_source_id
 
 # Nomes das propriedades no Notion
 NOTION_LEVEL_PROP = "Nível Flexge"
@@ -45,56 +45,32 @@ class PlacementTestService:
     async def get_all_emails_from_notion(self) -> List[str]:
         """Busca todos os emails do database do Notion, aplicando filtros para otimização."""
         try:
-            url = f"https://api.notion.com/v1/databases/{self.notion_db}/query"
-            headers = {
-                "Authorization": f"Bearer {NOTION_TOKEN}",
-                "Content-Type": "application/json",
-                "Notion-Version": "2022-06-28"
-            }
+            data_source_id = get_data_source_id(self.notion_db)
+            if not data_source_id:
+                print("❌ data_source_id indisponível para Notion")
+                return []
+            url = f"https://api.notion.com/v1/data_sources/{data_source_id}/query"
+            headers = HEADERS_NOTION
             
-            # Filtros para buscar apenas leads ativos por Status
-            # Status deve ser um dos: Em atendimento pela IA, Qualificado pela IA, Já entrei em contato,
-            # Agendado reunião, Reunião Realizada, Aguardando resposta.
+            # Filtros por Status ativos
             filters = {
                 "filter": {
                     "or": [
-                        {
-                            "property": NOTION_STATUS_PROP,
-                            "status": {"equals": "Em atendimento pela IA"},
-                        },
-                        {
-                            "property": NOTION_STATUS_PROP,
-                            "status": {"equals": "Qualificado pela IA"},
-                        },
-                        {
-                            "property": NOTION_STATUS_PROP,
-                            "status": {"equals": "Já entrei em contato"},
-                        },
-                        {
-                            "property": NOTION_STATUS_PROP,
-                            "status": {"equals": "Agendado reunião"},
-                        },
-                        {
-                            "property": NOTION_STATUS_PROP,
-                            "status": {"equals": "Reunião Realizada"},
-                        },
-                        {
-                            "property": NOTION_STATUS_PROP,
-                            "status": {"equals": "Aguardando resposta"},
-                        }
+                        {"property": NOTION_STATUS_PROP, "status": {"equals": "Em atendimento pela IA"}},
+                        {"property": NOTION_STATUS_PROP, "status": {"equals": "Qualificado pela IA"}},
+                        {"property": NOTION_STATUS_PROP, "status": {"equals": "Já entrei em contato"}},
+                        {"property": NOTION_STATUS_PROP, "status": {"equals": "Agendado reunião"}},
+                        {"property": NOTION_STATUS_PROP, "status": {"equals": "Reunião Realizada"}},
+                        {"property": NOTION_STATUS_PROP, "status": {"equals": "Aguardando resposta"}},
                     ]
                 }
             }
             
             all_emails = []
-            has_more = True
             start_cursor = None
             
-            while has_more:
-                payload = {
-                    "page_size": 100,
-                    **filters 
-                }
+            while True:
+                payload = {"page_size": 100, **filters}
                 if start_cursor:
                     payload["start_cursor"] = start_cursor
                 
@@ -103,15 +79,18 @@ class PlacementTestService:
                     response.raise_for_status()
                     data = response.json()
                 
-                # Extrai emails das páginas
-                for page in data.get("results", []):
+                results = data.get("results") or []
+                if not results:
+                    break
+                
+                for page in results:
                     properties = page.get("properties", {})
                     email_prop = properties.get(NOTION_EMAIL_PROP, {})
-                    
                     if email_prop.get("type") == "email" and email_prop.get("email"):
                         all_emails.append(email_prop["email"])
                 
-                has_more = data.get("has_more", False)
+                if not data.get("has_more"):
+                    break
                 start_cursor = data.get("next_cursor")
             
             print(f"✓ Encontrados {len(all_emails)} emails no Notion")

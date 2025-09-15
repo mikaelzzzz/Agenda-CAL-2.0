@@ -6,6 +6,33 @@ from config import (
     NOTION_NAME_PROP, NOTION_STATUS_PROP, NOTION_DATE_PROP
 )
 
+# Cache simples para data_source_id
+_data_source_cache: Dict[str, str] = {}
+
+def get_data_source_id(database_id: str) -> Optional[str]:
+    if database_id in _data_source_cache:
+        return _data_source_cache[database_id]
+    try:
+        resp = httpx.get(
+            f"https://api.notion.com/v1/databases/{database_id}",
+            headers=HEADERS_NOTION,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        data_sources = data.get("data_sources", [])
+        if not data_sources:
+            print(f"⚠️ Nenhum data_source para database {database_id}")
+            return None
+        ds_id = data_sources[0].get("id")
+        if ds_id:
+            _data_source_cache[database_id] = ds_id
+            return ds_id
+        return None
+    except Exception as e:
+        print(f"❌ Erro ao obter data_source_id: {e}")
+        return None
+
 def clean_phone_number(phone: str) -> str:
     """Limpa e padroniza o número de telefone para o formato 55..."""
     clean_phone = ''.join(filter(str.isdigit, phone))
@@ -24,6 +51,10 @@ def notion_find_page(identifier: str | None, by: str = "phone") -> Optional[str]
     if not identifier:
         return None
 
+    data_source_id = get_data_source_id(NOTION_DB)
+    if not data_source_id:
+        return None
+
     if by == "phone":
         search_value = clean_phone_number(identifier)
         filter_json = {"property": NOTION_PHONE_PROP, "phone_number": {"equals": search_value}}
@@ -36,7 +67,7 @@ def notion_find_page(identifier: str | None, by: str = "phone") -> Optional[str]
 
     try:
         resp = httpx.post(
-            f"https://api.notion.com/v1/databases/{NOTION_DB}/query",
+            f"https://api.notion.com/v1/data_sources/{data_source_id}/query",
             headers=HEADERS_NOTION,
             json={"filter": filter_json},
             timeout=15,
@@ -122,6 +153,11 @@ def notion_create_page(
     """Cria uma nova página no Notion para um novo lead com todos os detalhes."""
     print(f"Criando nova página no Notion para: {name}")
 
+    data_source_id = get_data_source_id(NOTION_DB)
+    if not data_source_id:
+        print("❌ data_source_id indisponível")
+        return None
+
     properties = {
         NOTION_NAME_PROP: {"title": [{"text": {"content": name}}]},
         NOTION_STATUS_PROP: {"status": {"name": status}},
@@ -133,7 +169,7 @@ def notion_create_page(
         properties[NOTION_PHONE_PROP] = {"phone_number": clean_phone_number(phone)}
 
     payload = {
-        "parent": {"database_id": NOTION_DB},
+        "parent": {"type": "data_source_id", "data_source_id": data_source_id},
         "properties": properties
     }
 
@@ -150,7 +186,6 @@ def notion_create_page(
         return new_page_id
     except Exception as e:
         print(f"✗ Erro ao criar página no Notion: {str(e)}")
-        # Adiciona log do payload para depuração
         print(f"Payload enviado: {json.dumps(payload, indent=2)}")
         return None
 
@@ -159,16 +194,12 @@ async def notion_update_page_property(page_id: str, property_name: str, property
     try:
         # Constrói o payload baseado no tipo da propriedade
         if property_type == "url":
-            # Para propriedades URL, o valor é passado diretamente
             property_value = value if value else None
         elif property_type == "select":
-            # Para propriedades Select, precisa do objeto com name
             property_value = value
         elif property_type == "rich_text":
-            # Para propriedades Rich Text, precisa do array com text
             property_value = value
         else:
-            # Para outros tipos, usa o valor diretamente
             property_value = value
         
         payload = {
@@ -228,7 +259,6 @@ def ensure_multi_select_options(property_name: str, desired_names: list[str]) ->
 
     missing = [n for n in desired_names if n not in name_to_id]
     if missing:
-        # Adiciona opções ausentes e atualiza o schema do database
         updated_options = options + [{"name": n} for n in missing]
         payload = {
             "properties": {
@@ -247,7 +277,6 @@ def ensure_multi_select_options(property_name: str, desired_names: list[str]) ->
                 timeout=15,
             )
             resp.raise_for_status()
-            # Recarrega schema para obter os IDs atualizados
             properties = get_database_properties() or {}
             prop = properties.get(property_name, {})
             options = prop.get("multi_select", {}).get("options", [])
@@ -256,5 +285,4 @@ def ensure_multi_select_options(property_name: str, desired_names: list[str]) ->
         except Exception as e:
             print(f"❌ Erro ao atualizar opções da propriedade '{property_name}': {e}")
 
-    # Retorna apenas os nomes solicitados que existem no schema
     return {name: name_to_id.get(name) for name in desired_names if name in name_to_id}
