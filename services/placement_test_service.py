@@ -52,40 +52,35 @@ class PlacementTestService:
                 "Notion-Version": "2022-06-28"
             }
             
-            # Filtros para buscar apenas leads ativos e em atendimento pela IA
-            # 1. "Em atendimento pela IA" está marcado (true)
-            # 2. Status é um dos seguintes: Qualificado pela IA, Já entrei em contato, 
-            #    Agendado reunião, Reunião Realizada, Aguardando resposta.
+            # Filtros para buscar apenas leads ativos por Status
+            # Status deve ser um dos: Em atendimento pela IA, Qualificado pela IA, Já entrei em contato,
+            # Agendado reunião, Reunião Realizada, Aguardando resposta.
             filters = {
                 "filter": {
-                    "and": [
+                    "or": [
                         {
-                            "property": NOTION_IA_ATTENDANCE_PROP,
-                            "checkbox": {"equals": True},
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"equals": "Em atendimento pela IA"},
                         },
                         {
-                            "or": [
-                                {
-                                    "property": NOTION_STATUS_PROP,
-                                    "status": {"equals": "Qualificado pela IA"},
-                                },
-                                {
-                                    "property": NOTION_STATUS_PROP,
-                                    "status": {"equals": "Já entrei em contato"},
-                                },
-                                {
-                                    "property": NOTION_STATUS_PROP,
-                                    "status": {"equals": "Agendado reunião"},
-                                },
-                                {
-                                    "property": NOTION_STATUS_PROP,
-                                    "status": {"equals": "Reunião Realizada"},
-                                },
-                                {
-                                    "property": NOTION_STATUS_PROP,
-                                    "status": {"equals": "Aguardando resposta"},
-                                },
-                            ]
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"equals": "Qualificado pela IA"},
+                        },
+                        {
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"equals": "Já entrei em contato"},
+                        },
+                        {
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"equals": "Agendado reunião"},
+                        },
+                        {
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"equals": "Reunião Realizada"},
+                        },
+                        {
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"equals": "Aguardando resposta"},
                         }
                     ]
                 }
