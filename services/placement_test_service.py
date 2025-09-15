@@ -139,18 +139,31 @@ class PlacementTestService:
             
             async with httpx.AsyncClient() as client:
                 while has_more:
-                    url = f"{self.base_url}/placement-tests?page={page}"
-                    print(f"🔍 Buscando na página {page} para {email}")
+                    # Tenta solicitar em ordem decrescente por data de criação para reduzir chamadas
+                    url = f"{self.base_url}/placement-tests?page={page}&sort=createdAt&order=desc"
+                    print(f"🔍 Buscando na página {page} (ordem desc) para {email}")
                     
                     response = await client.get(url, headers=headers)
                     response.raise_for_status()
                     data = response.json()
                     
-                    # Procura pelo email nos resultados da página atual
-                    for test in data.get("data", []):
+                    # Ordena localmente por createdAt desc como fallback de segurança
+                    tests = data.get("data", [])
+                    try:
+                        tests = sorted(
+                            tests,
+                            key=lambda t: (t.get("createdAt") or t.get("updatedAt") or ""),
+                            reverse=True,
+                        )
+                    except Exception:
+                        # Se não conseguir ordenar, segue com a lista como veio
+                        pass
+                    
+                    # Procura pelo email e exige isPlacementTestOnly == True
+                    for test in tests:
                         student = test.get("student", {})
-                        if student.get("email") == email:
-                            print(f"✅ Teste encontrado para {email} na página {page}")
+                        if student.get("email") == email and student.get("isPlacementTestOnly") is True:
+                            print(f"✅ Teste placement-only encontrado para {email} na página {page}")
                             return test
                     
                     # Verifica se há mais páginas
@@ -165,7 +178,7 @@ class PlacementTestService:
                     # Pequena pausa entre requisições para não sobrecarregar a API
                     await asyncio.sleep(0.1)
             
-            print(f"ℹ️ Nenhum teste encontrado para {email} em {page-1} páginas")
+            print(f"ℹ️ Nenhum teste placement-only encontrado para {email} em {page-1} páginas")
             return None
             
         except Exception as e:
