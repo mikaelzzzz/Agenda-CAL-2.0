@@ -60,12 +60,12 @@ async def lifespan(app: FastAPI):
     if placement_test_service.enabled:
         scheduler.add_job(
             placement_test_service.process_all_students,
-            trigger=IntervalTrigger(hours=1),  # Executa a cada 1 hora
+            trigger=IntervalTrigger(hours=3),  # Executa a cada 3 horas
             id="placement_test_checker",
             replace_existing=True,
             max_instances=1  # Evita execuções simultâneas
         )
-        print("✅ Job de verificação de testes de nivelamento agendado (a cada 1 hora)")
+        print("✅ Job de verificação de testes de nivelamento agendado (a cada 3 horas)")
     else:
         print("⚠️ Job de verificação de testes de nivelamento não agendado (FLEXGE_API_KEY não configurada)")
     
