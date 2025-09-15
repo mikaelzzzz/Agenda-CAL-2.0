@@ -3,13 +3,13 @@ import httpx
 import asyncio
 from typing import List, Dict, Any, Optional
 from config import (
-NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP,
-NOTION_TEST_OPTION_ID_SIM, NOTION_TEST_OPTION_ID_NAO, NOTION_TEST_PROP,
+    NOTION_TOKEN, NOTION_DB, FLEXGE_API_KEY, FLEXGE_BASE_URL, NOTION_LINK_PROP,
+    NOTION_TEST_PROP,
+    NOTION_STATUS_PROP, NOTION_IA_ATTENDANCE_PROP, NOTION_EMAIL_PROP
 )
 from services.notion_service import notion_find_page, notion_update_page_property
 
 # Nomes das propriedades no Notion
-NOTION_EMAIL_PROP = "Email"
 NOTION_LEVEL_PROP = "Nível Flexge"
 
 class PlacementTestService:
@@ -43,7 +43,7 @@ class PlacementTestService:
         return s
         
     async def get_all_emails_from_notion(self) -> List[str]:
-        """Busca todos os emails do database do Notion."""
+        """Busca todos os emails do database do Notion, aplicando filtros para otimização."""
         try:
             url = f"https://api.notion.com/v1/databases/{self.notion_db}/query"
             headers = {
@@ -52,13 +52,42 @@ class PlacementTestService:
                 "Notion-Version": "2022-06-28"
             }
             
+            # Filtros para buscar apenas leads ativos e em atendimento pela IA
+            # 1. "Em atendimento pela IA" está marcado (true)
+            # 2. Status não é "Finalizado"
+            # 3. Status não é "Pre lead"
+            # 4. Status não é "No Show"
+            filters = {
+                "filter": {
+                    "and": [
+                        {
+                            "property": NOTION_IA_ATTENDANCE_PROP,
+                            "checkbox": {"equals": True},
+                        },
+                        {
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"does_not_equal": "Finalizado"},
+                        },
+                        {
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"does_not_equal": "Pre lead"},
+                        },
+                        {
+                            "property": NOTION_STATUS_PROP,
+                            "status": {"does_not_equal": "No Show"},
+                        },
+                    ]
+                }
+            }
+            
             all_emails = []
             has_more = True
             start_cursor = None
             
             while has_more:
                 payload = {
-                    "page_size": 100
+                    "page_size": 100,
+                    **filters 
                 }
                 if start_cursor:
                     payload["start_cursor"] = start_cursor

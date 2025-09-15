@@ -30,6 +30,7 @@ NOTION_STATUS_PROP = os.getenv("NOTION_STATUS_PROP", "Status")
 NOTION_DATE_PROP = os.getenv("NOTION_DATE_PROP", "Data Agendada pelo Lead")
 NOTION_LINK_PROP = os.getenv("NOTION_LINK_PROP", "Link Flexge")
 NOTION_TEST_PROP = os.getenv("NOTION_TEST_PROP", "Teste de Nivelamento")
+NOTION_IA_ATTENDANCE_PROP = os.getenv("NOTION_IA_ATTENDANCE_PROP", "Em atendimento pela IA")
 
 # IDs das opções do multi-select (opcionais): "Sim" e "Não"
 NOTION_TEST_OPTION_ID_SIM = os.getenv("NOTION_TEST_OPTION_ID_SIM")
