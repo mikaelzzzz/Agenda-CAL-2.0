@@ -129,12 +129,22 @@ class PlacementTestService:
                 "x-api-key": self.api_key
             }
             
+            def normalize_email(e: str | None) -> str:
+                s = (e or "").strip().lower()
+                # Normalização simples para gmail: remove sufixo +tag e pontos na parte local
+                if "@gmail.com" in s:
+                    local, _, domain = s.partition("@")
+                    local = local.split("+")[0].replace(".", "")
+                    return f"{local}@{domain}"
+                return s
+            
+            target_email = normalize_email(email)
+            
             page = 1
             has_more = True
             
             async with httpx.AsyncClient() as client:
                 while has_more:
-                    # Tenta solicitar em ordem decrescente por data de criação para reduzir chamadas
                     url = f"{self.base_url}/placement-tests?page={page}&sort=createdAt&order=desc"
                     print(f"🔍 Buscando na página {page} (ordem desc) para {email}")
                     
@@ -142,7 +152,6 @@ class PlacementTestService:
                     response.raise_for_status()
                     data = response.json()
                     
-                    # Ordena localmente por createdAt desc como fallback de segurança
                     tests = data.get("data", [])
                     try:
                         tests = sorted(
@@ -151,39 +160,49 @@ class PlacementTestService:
                             reverse=True,
                         )
                     except Exception:
-                        # Se não conseguir ordenar, segue com a lista como veio
                         pass
                     
-                    # Normaliza email para comparação case-insensitive
-                    target_email = (email or "").strip().lower()
+                    # Filtros de consistência para considerar somente testes válidos/concluídos
+                    def is_completed_valid(t: Dict[str, Any]) -> bool:
+                        if t.get("deleted") is True:
+                            return False
+                        if (t.get("type") or "").upper() != "PLACEMENT":
+                            return False
+                        student = t.get("student", {})
+                        if student.get("deleted") is True:
+                            return False
+                        if not t.get("completedAt"):
+                            return False
+                        return True
                     
-                    # 1) Procura pelo email e exige isPlacementTestOnly == True
+                    # 1) Preferir placement-only + consistência de conclusão
                     for test in tests:
+                        if not is_completed_valid(test):
+                            continue
                         student = test.get("student", {})
-                        if (student.get("email") or "").strip().lower() == target_email and student.get("isPlacementTestOnly") is True:
-                            print(f"✅ Teste placement-only encontrado para {email} na página {page}")
+                        if normalize_email(student.get("email")) == target_email and student.get("isPlacementTestOnly") is True:
+                            print(f"✅ Teste placement-only CONCLUÍDO encontrado para {email} na página {page}")
                             return test
                     
-                    # 2) Fallback: aceita qualquer teste do mesmo email (mais recente primeiro)
+                    # 2) Fallback: qualquer teste concluído do mesmo email (mais recente primeiro)
                     for test in tests:
+                        if not is_completed_valid(test):
+                            continue
                         student = test.get("student", {})
-                        if (student.get("email") or "").strip().lower() == target_email:
-                            print(f"✅ Fallback: teste encontrado para {email} na página {page}")
+                        if normalize_email(student.get("email")) == target_email:
+                            print(f"✅ Fallback: teste CONCLUÍDO encontrado para {email} na página {page}")
                             return test
                     
                     # Verifica se há mais páginas
                     has_more = data.get("has_more", False)
                     page += 1
                     
-                    # Limite de segurança para evitar loop infinito
-                    if page > 100:  # Máximo 100 páginas
+                    if page > 100:
                         print(f"⚠️ Limite de páginas atingido para {email}")
                         break
-                    
-                    # Pequena pausa entre requisições para não sobrecarregar a API
                     await asyncio.sleep(0.1)
             
-            print(f"ℹ️ Nenhum teste encontrado para {email} em {page-1} páginas")
+            print(f"ℹ️ Nenhum teste CONCLUÍDO encontrado para {email} em {page-1} páginas")
             return None
             
         except Exception as e:
