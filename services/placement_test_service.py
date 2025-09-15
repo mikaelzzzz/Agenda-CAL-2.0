@@ -142,17 +142,24 @@ class PlacementTestService:
             
             page = 1
             has_more = True
+            next_cursor = None
             
             async with httpx.AsyncClient() as client:
-                while has_more:
-                    url = f"{self.base_url}/placement-tests?page={page}&sort=createdAt&order=desc"
+                while True:
+                    params = f"page={page}&sort=createdAt&order=desc"
+                    if next_cursor:
+                        params += f"&cursor={next_cursor}"
+                    url = f"{self.base_url}/placement-tests?{params}"
                     print(f"🔍 Buscando na página {page} (ordem desc) para {email}")
                     
                     response = await client.get(url, headers=headers)
                     response.raise_for_status()
                     data = response.json()
                     
-                    tests = data.get("data", [])
+                    tests = data.get("data") or []
+                    if not tests:
+                        # Página vazia: encerramos a paginação
+                        break
                     try:
                         tests = sorted(
                             tests,
@@ -162,7 +169,7 @@ class PlacementTestService:
                     except Exception:
                         pass
                     
-                    # Filtros de consistência para considerar somente testes válidos/concluídos
+                    # Filtros de consistência
                     def is_completed_valid(t: Dict[str, Any]) -> bool:
                         if t.get("deleted") is True:
                             return False
@@ -175,7 +182,7 @@ class PlacementTestService:
                             return False
                         return True
                     
-                    # 1) Preferir placement-only + consistência de conclusão
+                    # 1) Preferir placement-only
                     for test in tests:
                         if not is_completed_valid(test):
                             continue
@@ -184,7 +191,7 @@ class PlacementTestService:
                             print(f"✅ Teste placement-only CONCLUÍDO encontrado para {email} na página {page}")
                             return test
                     
-                    # 2) Fallback: qualquer teste concluído do mesmo email (mais recente primeiro)
+                    # 2) Fallback concluído
                     for test in tests:
                         if not is_completed_valid(test):
                             continue
@@ -193,11 +200,16 @@ class PlacementTestService:
                             print(f"✅ Fallback: teste CONCLUÍDO encontrado para {email} na página {page}")
                             return test
                     
-                    # Verifica se há mais páginas
-                    has_more = data.get("has_more", False)
+                    # Avança paginação
+                    has_more = data.get("has_more") or data.get("hasMore") or False
+                    next_cursor = data.get("next_cursor") or data.get("nextCursor")
                     page += 1
                     
-                    if page > 100:
+                    if not has_more and not next_cursor:
+                        # Se não há pistas de continuidade, paramos
+                        break
+                    
+                    if page > 200:
                         print(f"⚠️ Limite de páginas atingido para {email}")
                         break
                     await asyncio.sleep(0.1)
