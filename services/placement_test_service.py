@@ -154,11 +154,21 @@ class PlacementTestService:
                         # Se não conseguir ordenar, segue com a lista como veio
                         pass
                     
-                    # Procura pelo email e exige isPlacementTestOnly == True
+                    # Normaliza email para comparação case-insensitive
+                    target_email = (email or "").strip().lower()
+                    
+                    # 1) Procura pelo email e exige isPlacementTestOnly == True
                     for test in tests:
                         student = test.get("student", {})
-                        if student.get("email") == email and student.get("isPlacementTestOnly") is True:
+                        if (student.get("email") or "").strip().lower() == target_email and student.get("isPlacementTestOnly") is True:
                             print(f"✅ Teste placement-only encontrado para {email} na página {page}")
+                            return test
+                    
+                    # 2) Fallback: aceita qualquer teste do mesmo email (mais recente primeiro)
+                    for test in tests:
+                        student = test.get("student", {})
+                        if (student.get("email") or "").strip().lower() == target_email:
+                            print(f"✅ Fallback: teste encontrado para {email} na página {page}")
                             return test
                     
                     # Verifica se há mais páginas
@@ -173,7 +183,7 @@ class PlacementTestService:
                     # Pequena pausa entre requisições para não sobrecarregar a API
                     await asyncio.sleep(0.1)
             
-            print(f"ℹ️ Nenhum teste placement-only encontrado para {email} em {page-1} páginas")
+            print(f"ℹ️ Nenhum teste encontrado para {email} em {page-1} páginas")
             return None
             
         except Exception as e:
