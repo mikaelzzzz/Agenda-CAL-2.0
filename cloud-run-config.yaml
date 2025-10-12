@@ -1,0 +1,115 @@
+# Cloud Run service configuration template
+# This is a reference configuration. Use gcloud commands or Cloud Console to apply.
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: agenda-cal-service
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        # Cloud SQL connection
+        run.googleapis.com/cloudsql-instances: PROJECT_ID:REGION:agenda-cal-db
+        # Auto-scaling
+        autoscaling.knative.dev/minScale: '1'
+        autoscaling.knative.dev/maxScale: '10'
+        # CPU allocation
+        run.googleapis.com/cpu-throttling: 'false'
+        # Startup probe
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      serviceAccountName: PROJECT_ID@appspot.gserviceaccount.com
+      containers:
+      - image: gcr.io/PROJECT_ID/agenda-cal:latest
+        ports:
+        - name: http1
+          containerPort: 8080
+        resources:
+          limits:
+            cpu: '2000m'
+            memory: 1Gi
+        env:
+        # Core Configuration
+        - name: TZ
+          value: "America/Sao_Paulo"
+        - name: CAL_SECRET
+          value: "YOUR_CAL_SECRET"
+        - name: DATABASE_URL
+          value: "postgresql://USER:PASSWORD@/DBNAME?host=/cloudsql/PROJECT_ID:REGION:INSTANCE_ID"
+        
+        # Notion Configuration
+        - name: NOTION_TOKEN
+          value: "YOUR_NOTION_TOKEN"
+        - name: NOTION_DB
+          value: "YOUR_NOTION_DB_ID"
+        - name: NOTION_NAME_PROP
+          value: "Nome"
+        - name: NOTION_EMAIL_PROP
+          value: "Email"
+        - name: NOTION_PHONE_PROP
+          value: "Telefone"
+        - name: NOTION_STATUS_PROP
+          value: "Status"
+        - name: NOTION_DATE_PROP
+          value: "Data Agendada pelo Lead"
+        - name: NOTION_LINK_PROP
+          value: "Link Flexge"
+        - name: NOTION_TEST_PROP
+          value: "Teste de Nivelamento"
+        - name: NOTION_IA_ATTENDANCE_PROP
+          value: "Em atendimento pela IA"
+        - name: NOTION_STATUS_VALUE
+          value: "Agendado reunião"
+        
+        # Z-API Configuration (WhatsApp)
+        - name: ZAPI_INSTANCE
+          value: "YOUR_ZAPI_INSTANCE"
+        - name: ZAPI_TOKEN
+          value: "YOUR_ZAPI_TOKEN"
+        - name: ZAPI_CLIENT_TOKEN
+          value: "YOUR_ZAPI_CLIENT_TOKEN"
+        - name: ADMIN_PHONES
+          value: "5511999999999,5511888888888"
+        
+        # Flexge API Configuration
+        - name: FLEXGE_API_KEY
+          value: "YOUR_FLEXGE_API_KEY"
+        - name: FLEXGE_BASE_URL
+          value: "https://partner-api.flexge.com/external/placement-tests"
+        
+        # Zaia API Configuration
+        - name: ZAIA_API_KEY
+          value: "YOUR_ZAIA_API_KEY"
+        - name: ZAIA_AGENT_ID
+          value: "YOUR_ZAIA_AGENT_ID"
+        - name: ZAIA_BASE_URL
+          value: "https://api.zaia.app"
+        
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 10
+  
+  traffic:
+  - percent: 100
+    latestRevision: true
+

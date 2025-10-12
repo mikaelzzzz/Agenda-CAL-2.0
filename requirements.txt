@@ -6,6 +6,7 @@ pytz
 python-dotenv
 requests
 uvicorn
+gunicorn
 SQLAlchemy
 psycopg2-binary 
 colorlog
